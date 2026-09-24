@@ -104,6 +104,11 @@ Mockup: [`flyout-mockup.png`](flyout-mockup.png). Letter tiles stand in for real
 - It lists every installed app that winget can update, sorted by name, with icon, version and publisher. **Nothing is ticked on first run.**
 - A search box filters as you type. There's a "Show selected" filter and a "3 of 48 selected" count.
 - Changes apply as you tick. **Done** returns to Updates, and a check runs for newly added apps.
+- At the end of the list, a section named **Updated elsewhere (N)** holds the installed apps that winget can't update. These include games from Steam and other launchers, drivers, Windows components, Store apps winget can't match, and apps whose installed version is unknown.
+  - It starts collapsed. Expanding it shows every one of these apps, and search filters them too.
+  - One line explains that these apps update themselves or through another app, so they can't be tracked here.
+  - Rows have no tick box. Each row names what updates the app when that's known, such as Steam, Microsoft Store, Windows Update or a driver tool.
+- winget's full installed list misses some apps it can update. So the page also looks up the unmatched apps by name and id, and moves each app it finds into the tickable list.
 
 ### 4.5 Settings page
 
@@ -223,7 +228,7 @@ README.md  LICENSE  .gitignore  .gitattributes  Directory.Build.props  global.js
   - the network returning after being offline, if a check was due
 - **Gating:** scheduled checks skip while offline or while Battery saver is on, and run when the condition clears.
 - **Each check:**
-  1. List installed packages correlated with the winget and msstore catalogs (COM). Read installed and available versions.
+  1. List installed packages correlated with the winget and msstore catalogs (COM). Then look up by id any tracked app the list didn't match, because the full list misses apps that only a targeted lookup matches. Read installed and available versions.
   2. Filter out:
      - installed version "Unknown" (shown as "Version unknown")
      - skipped versions
