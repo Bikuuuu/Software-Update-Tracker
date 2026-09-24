@@ -15,6 +15,9 @@ TestResults/
 # Installer and release output
 dist/
 
+# Local working plans
+docs/plans/
+
 # Windows clutter
 Thumbs.db
 desktop.ini
