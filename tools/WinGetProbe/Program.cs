@@ -11,7 +11,17 @@ catch (Exception ex)
     return 3;
 }
 
-Console.WriteLine($"winget COM {manager.Version}");
+string version;
+try
+{
+    version = manager.Version;
+}
+catch (InvalidCastException)
+{
+    Console.Error.WriteLine("winget is too old for this COM API (IPackageManager7 missing); update App Installer.");
+    return 4;
+}
+Console.WriteLine($"winget COM {version}");
 var catalog = Connect(manager);
 switch (args.FirstOrDefault() ?? "list")
 {

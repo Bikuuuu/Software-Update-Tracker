@@ -23,13 +23,11 @@ jobs:
       - name: S8 winget on the runner
         shell: pwsh
         run: |
-          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            Write-Host 'winget missing, installing'
-            Install-PackageProvider -Name NuGet -Force -Scope CurrentUser | Out-Null
-            Install-Module Microsoft.WinGet.Client -Force -Scope CurrentUser -Repository PSGallery
-            Repair-WinGetPackageManager -Latest -Force
-          }
-          winget --version
+          Write-Host "preinstalled winget: $(winget --version)"
+          Install-PackageProvider -Name NuGet -Force -Scope CurrentUser | Out-Null
+          Install-Module Microsoft.WinGet.Client -Force -Scope CurrentUser -Repository PSGallery
+          Repair-WinGetPackageManager -Latest -Force
+          Write-Host "updated winget: $(winget --version)"
       - name: Build tools
         run: |
           dotnet build tools/WinGetProbe -c Release
