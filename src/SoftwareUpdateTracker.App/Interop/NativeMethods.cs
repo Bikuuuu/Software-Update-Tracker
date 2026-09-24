@@ -78,6 +78,21 @@ internal static class NativeMethods
     [DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(uint processId);
     [DllImport("user32.dll")] public static extern bool PostMessageW(nint hwnd, uint msg, nint wParam, nint lParam);
 
+    public const uint NORMAL_PRIORITY_CLASS = 0x20, BELOW_NORMAL_PRIORITY_CLASS = 0x4000;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PROCESS_POWER_THROTTLING_STATE
+    {
+        public uint Version;
+        public uint ControlMask;
+        public uint StateMask;
+    }
+
+    [DllImport("kernel32.dll")] public static extern nint GetCurrentProcess();
+    [DllImport("kernel32.dll")] public static extern bool SetPriorityClass(nint process, uint priority);
+    [DllImport("kernel32.dll")] public static extern bool SetProcessWorkingSetSizeEx(nint process, nint minimum, nint maximum, uint flags);
+    [DllImport("kernel32.dll")] public static extern bool SetProcessInformation(nint process, int infoClass, ref PROCESS_POWER_THROTTLING_STATE info, uint size);
+
     public const uint MONITOR_DEFAULTTOPRIMARY = 1;
 
     [StructLayout(LayoutKind.Sequential)]

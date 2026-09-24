@@ -47,7 +47,11 @@ public sealed partial class FlyoutWindow : Window
         Dwm.SetCloaked(_hwnd, true);
         MoveToCorner();
         AppWindow.Show(false);
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => AppWindow.Hide());
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            AppWindow.Hide();
+            Efficiency.EnterIdle();
+        });
     }
 
     public void OnTrayClick()
@@ -62,6 +66,7 @@ public sealed partial class FlyoutWindow : Window
     public void Show()
     {
         if (_toggle.IsOpen) return;
+        Efficiency.ExitIdle();
         _toggle.Opened();
         Root.Opacity = 0;
         MoveToCorner();
@@ -84,6 +89,7 @@ public sealed partial class FlyoutWindow : Window
         Busy.IsIndeterminate = false;
         Dwm.SetCloaked(_hwnd, true);
         AppWindow.Hide();
+        Efficiency.EnterIdle();
     }
 
     private void MoveToCorner()
