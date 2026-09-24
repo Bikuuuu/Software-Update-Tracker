@@ -20,6 +20,12 @@ public static class Program
             return 0;
         }
 
+        if (Environment.GetCommandLineArgs().Contains("--cleanup-notifications"))
+        {
+            Notifications.ToastService.RemoveRegistration();
+            return 0;
+        }
+
         var instance = AppInstance.FindOrRegisterForKey(AppInfo.InstanceKey);
         if (!instance.IsCurrent)
         {
