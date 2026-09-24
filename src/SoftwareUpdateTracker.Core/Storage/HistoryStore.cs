@@ -12,7 +12,7 @@ public sealed class HistoryStore(string path, TimeProvider time)
     // Newest first, 90 days at most.
     public IReadOnlyList<HistoryEntry> Entries
     {
-        get { lock (_gate) return _entries; }
+        get { lock (_gate) return Array.AsReadOnly(_entries); }
     }
 
     // True when a corrupt file was set aside and history started empty.
@@ -28,20 +28,12 @@ public sealed class HistoryStore(string path, TimeProvider time)
 
     public void Add(HistoryEntry entry)
     {
-        lock (_gate)
-        {
-            _entries = Prune([entry, .. _entries]);
-            Save();
-        }
+        lock (_gate) Save(Prune([entry, .. _entries]));
     }
 
     public void Clear()
     {
-        lock (_gate)
-        {
-            _entries = [];
-            Save();
-        }
+        lock (_gate) Save([]);
     }
 
     private HistoryEntry[] Prune(IEnumerable<HistoryEntry> entries)
@@ -50,5 +42,10 @@ public sealed class HistoryStore(string path, TimeProvider time)
         return [.. entries.Where(e => e.Time >= cutoff).OrderByDescending(e => e.Time)];
     }
 
-    private void Save() => JsonFile.Save(path, new HistoryFile { Entries = _entries }, CoreJson.Default.HistoryFile);
+    // The store changes only once the file is saved.
+    private void Save(HistoryEntry[] entries)
+    {
+        JsonFile.Save(path, new HistoryFile { Entries = entries }, CoreJson.Default.HistoryFile);
+        _entries = entries;
+    }
 }

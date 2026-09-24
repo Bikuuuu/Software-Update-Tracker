@@ -26,16 +26,21 @@ public static class AutoInstallRules
     {
         if (!app.Auto) return AutoBlock.AutoOff;
         if (status != AppStatus.Available || app.Offer is not { } offer) return AutoBlock.NotAvailable;
-        if (settings.AutoInstallWaitDays > 0 && now - ReleasedAt(offer) < TimeSpan.FromDays(settings.AutoInstallWaitDays))
+        if (settings.AutoInstallWaitDays > 0 && now - ReleasedAt(offer, now) < TimeSpan.FromDays(settings.AutoInstallWaitDays))
             return AutoBlock.TooNew;
         if (settings.PauseDuringGames && system.FullScreen) return AutoBlock.FullScreen;
         if (system.Metered) return AutoBlock.Metered;
         if (system.BatterySaver) return AutoBlock.BatterySaver;
-        if (offer.LastAutoAttempt is { } last && now - last < AttemptCooldown) return AutoBlock.RecentlyAttempted;
+        // An attempt after now means the clock went back, so it doesn't count.
+        if (offer.LastAutoAttempt is { } last && last <= now && now - last < AttemptCooldown) return AutoBlock.RecentlyAttempted;
         return AutoBlock.None;
     }
 
-    // Release date when known, else the day we first saw the version.
-    private static DateTimeOffset ReleasedAt(Offer offer) =>
-        offer.ReleaseDate is { } date ? new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : offer.FirstSeen;
+    // Release date when known and not ahead of now, else the day we first saw the version.
+    private static DateTimeOffset ReleasedAt(Offer offer, DateTimeOffset now)
+    {
+        if (offer.ReleaseDate is not { } date) return offer.FirstSeen;
+        var released = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        return released <= now ? released : offer.FirstSeen;
+    }
 }

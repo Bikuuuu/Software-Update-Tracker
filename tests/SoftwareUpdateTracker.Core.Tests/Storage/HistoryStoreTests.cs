@@ -80,6 +80,25 @@ public sealed class HistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Entries_CannotBeChangedFromOutside()
+    {
+        var store = Store();
+        store.Add(Entry("A", TimeSpan.Zero));
+        Assert.Throws<NotSupportedException>(() => ((IList<HistoryEntry>)store.Entries)[0] = Entry("B", TimeSpan.Zero));
+        Assert.Equal("A", Assert.Single(store.Entries).Id);
+    }
+
+    [Fact]
+    public void FailedSave_LeavesHistoryUnchanged()
+    {
+        var blocker = _folder.PathOf("blocker");
+        File.WriteAllText(blocker, "");
+        var store = new HistoryStore(Path.Combine(blocker, "history.json"), _time);
+        Assert.ThrowsAny<IOException>(() => store.Add(Entry("A", TimeSpan.Zero)));
+        Assert.Empty(store.Entries);
+    }
+
+    [Fact]
     public void EmptyObject_LoadsEmptyHistory()
     {
         File.WriteAllText(HistoryPath, "{}");

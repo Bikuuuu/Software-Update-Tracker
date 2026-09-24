@@ -166,6 +166,26 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void PascalCaseKeys_Load()
+    {
+        File.WriteAllText(SettingsPath, """{ "Settings": { "CheckIntervalHours": 12 }, "Apps": [ { "Id": "A", "Source": "winget", "Auto": true } ] }""");
+        var store = Loaded(out var recovered);
+        Assert.False(recovered);
+        Assert.Equal(12, store.Current.Settings.CheckIntervalHours);
+        Assert.True(Assert.Single(store.Current.Apps).Auto);
+    }
+
+    [Fact]
+    public void FailedSave_KeepsTheCurrentFile()
+    {
+        var blocker = _folder.PathOf("blocker");
+        File.WriteAllText(blocker, "");
+        var store = new SettingsStore(Path.Combine(blocker, "settings.json"));
+        Assert.ThrowsAny<IOException>(() => store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] }));
+        Assert.Empty(store.Current.Apps);
+    }
+
+    [Fact]
     public void EmptyObject_LoadsDefaults()
     {
         File.WriteAllText(SettingsPath, "{}");

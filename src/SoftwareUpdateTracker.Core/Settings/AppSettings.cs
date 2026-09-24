@@ -26,6 +26,6 @@ public sealed record AppSettings
         CheckIntervalHours = CheckIntervalChoices.Contains(CheckIntervalHours) ? CheckIntervalHours : DefaultCheckIntervalHours,
         AutoInstallWaitDays = WaitDayChoices.Contains(AutoInstallWaitDays) ? AutoInstallWaitDays : 0,
         SpeedLimitKBps = SpeedLimitKBps > 0 ? SpeedLimitKBps : DefaultSpeedLimitKBps,
-        OpenShortcut = OpenShortcut is { Key: < 1 or > 254 } ? Shortcut.Default : OpenShortcut,
+        OpenShortcut = OpenShortcut is { } shortcut && !shortcut.IsValid() ? Shortcut.Default : OpenShortcut,
     };
 }

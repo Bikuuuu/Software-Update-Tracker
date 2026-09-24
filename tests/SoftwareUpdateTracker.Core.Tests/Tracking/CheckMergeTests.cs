@@ -48,6 +48,13 @@ public class CheckMergeTests
     }
 
     [Fact]
+    public void FirstSeenInTheFuture_IsResetToNow()
+    {
+        var old = Firefox with { Offer = new Offer { Version = "131.0", FirstSeen = Now.AddDays(2) } };
+        Assert.Equal(Now, MergeOne(old, Package("130.0", "131.0")).App.Offer!.FirstSeen);
+    }
+
+    [Fact]
     public void NoUpdate_IsUpToDateAndClearsTheOffer()
     {
         var old = Firefox with { Offer = new Offer { Version = "131.0", FirstSeen = Now.AddDays(-1) } };

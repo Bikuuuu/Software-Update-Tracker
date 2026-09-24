@@ -90,6 +90,20 @@ public class AutoInstallRulesTests
     }
 
     [Fact]
+    public void AttemptInTheFuture_IsIgnored()
+    {
+        var app = AutoApp with { Offer = AutoApp.Offer! with { LastAutoAttempt = Now.AddDays(1) } };
+        Assert.Equal(AutoBlock.None, Check(app));
+    }
+
+    [Fact]
+    public void FutureReleaseDate_FallsBackToFirstSeen()
+    {
+        var app = AutoApp with { Offer = AutoApp.Offer! with { FirstSeen = Now.AddDays(-5), ReleaseDate = new DateOnly(2026, 10, 5) } };
+        Assert.Equal(AutoBlock.None, Check(app, settings: new AppSettings { AutoInstallWaitDays = 3 }));
+    }
+
+    [Fact]
     public void Attempt12HoursAgo_TriesAgain()
     {
         var app = AutoApp with { Offer = AutoApp.Offer! with { LastAutoAttempt = Now.AddHours(-12) } };

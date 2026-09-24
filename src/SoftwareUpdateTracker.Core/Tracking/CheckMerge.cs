@@ -22,6 +22,8 @@ public static class CheckMerge
         var available = package.AvailableVersion!;
         var isNew = app.Offer is null || !PackageVersion.Same(app.Offer.Version, available);
         var offer = isNew ? new Offer { Version = available, FirstSeen = now } : app.Offer!;
+        // First seen after now means the clock went back.
+        if (offer.FirstSeen > now) offer = offer with { FirstSeen = now };
         app = app with { Offer = offer };
         if (PackageVersion.Same(app.SkippedVersion, available)) return new AppCheck(app, AppStatus.Skipped, package, false);
         if (offer.Phantom) return new AppCheck(app, AppStatus.Phantom, package, false);

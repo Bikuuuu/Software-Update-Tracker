@@ -3,9 +3,9 @@ namespace SoftwareUpdateTracker.Core.Versions;
 // The new version split into the part that matches the old one and the part that changed.
 public readonly record struct VersionDiff(string Unchanged, string Changed)
 {
-    public static VersionDiff Between(string? oldVersion, string newVersion)
+    public static VersionDiff Between(string? oldVersion, string? newVersion)
     {
-        var next = newVersion.Trim();
+        var next = newVersion?.Trim() ?? "";
         var newParts = next.Split('.');
         var oldParts = (oldVersion ?? "").Trim().Split('.');
         var same = 0;

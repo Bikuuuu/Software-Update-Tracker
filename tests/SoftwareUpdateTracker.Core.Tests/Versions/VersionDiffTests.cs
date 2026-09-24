@@ -16,6 +16,9 @@ public class VersionDiffTests
     public void Between_HighlightsFromTheFirstChangedPart(string? oldVersion, string newVersion, string unchanged, string changed) =>
         Assert.Equal(new VersionDiff(unchanged, changed), VersionDiff.Between(oldVersion, newVersion));
 
+    [Fact]
+    public void MissingNewVersion_IsEmpty() => Assert.Equal(new VersionDiff("", ""), VersionDiff.Between("1.0", null));
+
     [Theory]
     [InlineData("1.2.3", "1.3.0-beta")]
     [InlineData("24.08", "24.9")]

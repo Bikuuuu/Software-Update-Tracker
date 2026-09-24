@@ -7,6 +7,7 @@ namespace SoftwareUpdateTracker.Core.Storage;
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    PropertyNameCaseInsensitive = true,
     UseStringEnumConverter = true,
     RespectNullableAnnotations = true,
     AllowTrailingCommas = true,

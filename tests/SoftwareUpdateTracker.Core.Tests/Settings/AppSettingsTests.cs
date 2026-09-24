@@ -48,6 +48,20 @@ public class AppSettingsTests
         Assert.Null(new AppSettings { OpenShortcut = null }.Normalize().OpenShortcut);
 
     [Theory]
+    [InlineData(ShortcutModifiers.None)]
+    [InlineData((ShortcutModifiers)64)]
+    [InlineData(ShortcutModifiers.Control | (ShortcutModifiers)64)]
+    public void Normalize_ReplacesAShortcutWithoutKnownModifiers(ShortcutModifiers modifiers) =>
+        Assert.Equal(Shortcut.Default, new AppSettings { OpenShortcut = new Shortcut(modifiers, 0x55) }.Normalize().OpenShortcut);
+
+    [Fact]
+    public void Normalize_KeepsAValidShortcut()
+    {
+        var shortcut = new Shortcut(ShortcutModifiers.Shift | ShortcutModifiers.Windows, 0x7B);
+        Assert.Equal(shortcut, new AppSettings { OpenShortcut = shortcut }.Normalize().OpenShortcut);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(255)]
     public void Normalize_ReplacesAnInvalidKeyWithTheDefault(int key) =>
