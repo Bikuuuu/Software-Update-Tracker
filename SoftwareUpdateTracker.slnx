@@ -3,6 +3,9 @@
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/src/">
+    <Project Path="src/SoftwareUpdateTracker.App/SoftwareUpdateTracker.App.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/SoftwareUpdateTracker.Core/SoftwareUpdateTracker.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
