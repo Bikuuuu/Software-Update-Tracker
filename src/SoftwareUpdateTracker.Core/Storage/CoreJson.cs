@@ -11,6 +11,7 @@ namespace SoftwareUpdateTracker.Core.Storage;
     AllowTrailingCommas = true,
     ReadCommentHandling = JsonCommentHandling.Skip)]
 [JsonSerializable(typeof(SettingsFile))]
+[JsonSerializable(typeof(HistoryFile))]
 internal sealed partial class CoreJson : JsonSerializerContext
 {
 }
