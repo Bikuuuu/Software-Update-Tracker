@@ -307,6 +307,20 @@ public sealed class CheckSchedulerTests : IDisposable
     }
 
     [Fact]
+    public void StaleTimerCallback_DoesNotFailAJustStartedCheck()
+    {
+        var time = new ManualTimeProvider(new DateTimeOffset(2026, 9, 25, 8, 0, 0, TimeSpan.Zero));
+        using var scheduler = new CheckScheduler(time, Interval);
+        var tickets = new List<CheckTicket>();
+        scheduler.CheckDue += (_, ticket) => tickets.Add(ticket);
+        scheduler.CheckNow();
+        time.FireTimer();
+        Assert.Null(scheduler.NextCheck);
+        scheduler.Finished(tickets[^1], true);
+        Assert.Equal(time.GetUtcNow() + Interval, scheduler.NextCheck);
+    }
+
+    [Fact]
     public void StrayFinished_IsIgnored()
     {
         _scheduler.Finished(new CheckTicket(42, CheckTrigger.Manual), false);
@@ -322,5 +336,36 @@ public sealed class CheckSchedulerTests : IDisposable
         _scheduler.CheckNow();
         _scheduler.SetConditions(online: true, batterySaver: false);
         Assert.Empty(_checks);
+    }
+
+    // Runs the timer callback by hand, like one already queued to the thread pool.
+    private sealed class ManualTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        private TimerCallback? _callback;
+
+        public override DateTimeOffset GetUtcNow() => now;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => now.UtcTicks;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            _callback = callback;
+            return new InertTimer();
+        }
+
+        public void FireTimer() => _callback!(null);
+
+        private sealed class InertTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose()
+            {
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 }

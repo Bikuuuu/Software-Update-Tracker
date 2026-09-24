@@ -31,6 +31,7 @@ public sealed class CheckScheduler : IDisposable
     private DateTimeOffset? _lastAttempt;
     private int _failures;
     private long _ticket;
+    private long _startedAt;
     private bool _running;
     private bool _online = true;
     private bool _batterySaver;
@@ -140,8 +141,18 @@ public sealed class CheckScheduler : IDisposable
         CheckTicket? due;
         lock (_gate)
         {
-            // Firing mid-check means the check never finished: count it as failed.
-            if (_running && !_disposed) Complete(succeeded: false);
+            if (_running && !_disposed)
+            {
+                // A callback queued before this check began is not its watchdog.
+                var elapsed = _time.GetElapsedTime(_startedAt);
+                if (elapsed < CheckTimeout)
+                {
+                    _timer.Change(elapsed < TimeSpan.Zero ? CheckTimeout : CheckTimeout - elapsed, Timeout.InfiniteTimeSpan);
+                    return;
+                }
+                // The check never finished: count it as failed.
+                Complete(succeeded: false);
+            }
             due = Plan();
         }
         Raise(due);
@@ -200,6 +211,7 @@ public sealed class CheckScheduler : IDisposable
     {
         if (_disposed || _running) return null;
         _running = true;
+        _startedAt = _time.GetTimestamp();
         // While a check runs, the timer is its watchdog.
         _timer.Change(CheckTimeout, Timeout.InfiniteTimeSpan);
         return new CheckTicket(++_ticket, trigger);
