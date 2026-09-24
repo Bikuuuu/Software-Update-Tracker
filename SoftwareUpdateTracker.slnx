@@ -8,4 +8,9 @@
   <Folder Name="/tests/">
     <Project Path="tests/SoftwareUpdateTracker.Core.Tests/SoftwareUpdateTracker.Core.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/IconGen/IconGen.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
 </Solution>
