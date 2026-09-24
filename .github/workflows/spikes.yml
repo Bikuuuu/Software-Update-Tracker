@@ -24,7 +24,6 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "preinstalled winget: $(winget --version)"
-          Install-PackageProvider -Name NuGet -Force -Scope CurrentUser | Out-Null
           Install-Module Microsoft.WinGet.Client -Force -Scope CurrentUser -Repository PSGallery
           Repair-WinGetPackageManager -Latest -Force
           Write-Host "updated winget: $(winget --version)"
