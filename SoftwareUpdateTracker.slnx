@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/SoftwareUpdateTracker.Core/SoftwareUpdateTracker.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SoftwareUpdateTracker.Core.Tests/SoftwareUpdateTracker.Core.Tests.csproj" />
+  </Folder>
+</Solution>
