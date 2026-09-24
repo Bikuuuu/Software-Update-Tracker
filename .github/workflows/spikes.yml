@@ -1,6 +1,11 @@
 name: Spikes
 on:
   workflow_dispatch:
+  push:
+    branches: [plan-01-foundation]
+    paths:
+      - '.github/workflows/spikes.yml'
+      - 'tools/**'
 permissions:
   contents: read
 jobs:
