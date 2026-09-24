@@ -80,6 +80,15 @@ public sealed class HistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void EmptyObject_LoadsEmptyHistory()
+    {
+        File.WriteAllText(HistoryPath, "{}");
+        var store = new HistoryStore(HistoryPath, _time);
+        Assert.False(store.Load());
+        Assert.Empty(store.Entries);
+    }
+
+    [Fact]
     public void CorruptFile_IsKeptAsBakAndHistoryStartsEmpty()
     {
         File.WriteAllText(HistoryPath, "{ broken");

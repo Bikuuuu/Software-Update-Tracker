@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace SoftwareUpdateTracker.Core.Storage;
 
+// Persisted records use set, not init: generated code would drop the defaults of missing init keys.
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

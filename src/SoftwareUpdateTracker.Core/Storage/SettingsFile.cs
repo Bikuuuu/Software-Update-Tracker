@@ -6,9 +6,9 @@ namespace SoftwareUpdateTracker.Core.Storage;
 // settings.json: the settings plus the tracked apps with their bookkeeping.
 public sealed record SettingsFile
 {
-    public int Version { get; init; } = 1;
-    public AppSettings Settings { get; init; } = new();
-    public IReadOnlyList<TrackedApp> Apps { get; init; } = [];
+    public int Version { get; set; } = 1;
+    public AppSettings Settings { get; set; } = new();
+    public IReadOnlyList<TrackedApp> Apps { get; set; } = [];
 
     public SettingsFile Normalize() => this with
     {

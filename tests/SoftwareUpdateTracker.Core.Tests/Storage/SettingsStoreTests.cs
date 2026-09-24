@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using SoftwareUpdateTracker.Core.Settings;
 using SoftwareUpdateTracker.Core.Storage;
 using SoftwareUpdateTracker.Core.Tracking;
@@ -162,6 +163,45 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(0, store.Current.Settings.AutoInstallWaitDays);
         Assert.Equal(17500, store.Current.Settings.SpeedLimitKBps);
         Assert.Equal("Mozilla.Firefox", Assert.Single(store.Current.Apps).Id);
+    }
+
+    [Fact]
+    public void EmptyObject_LoadsDefaults()
+    {
+        File.WriteAllText(SettingsPath, "{}");
+        var store = Loaded(out var recovered);
+        Assert.False(recovered);
+        Assert.Equal(1, store.Current.Version);
+        Assert.Equal(new AppSettings(), store.Current.Settings);
+        Assert.Empty(store.Current.Apps);
+    }
+
+    [Fact]
+    public void MissingKeys_KeepSpecDefaults()
+    {
+        File.WriteAllText(SettingsPath, """{ "settings": { "checkIntervalHours": 12 }, "apps": [ { "id": "A", "source": "winget" } ] }""");
+        var store = Loaded(out var recovered);
+        Assert.False(recovered);
+        Assert.Equal(new AppSettings { CheckIntervalHours = 12 }, store.Current.Settings);
+        Assert.Equal("", Assert.Single(store.Current.Apps).Name);
+    }
+
+    [Fact]
+    public void AppsArrayDeletedByHand_Loads()
+    {
+        new SettingsStore(SettingsPath).Update(f => f with
+        {
+            Settings = f.Settings with { CheckIntervalHours = 12 },
+            Apps = [new TrackedApp { Id = "A", Source = "winget" }],
+        });
+        var json = JsonNode.Parse(File.ReadAllText(SettingsPath))!.AsObject();
+        json.Remove("apps");
+        File.WriteAllText(SettingsPath, json.ToJsonString());
+
+        var store = Loaded(out var recovered);
+        Assert.False(recovered);
+        Assert.Equal(12, store.Current.Settings.CheckIntervalHours);
+        Assert.Empty(store.Current.Apps);
     }
 
     [Fact]
