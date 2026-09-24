@@ -18,6 +18,15 @@ public sealed partial class FlyoutWindow : Window
 {
     private readonly nint _hwnd;
     private readonly FlyoutToggle _toggle = new(TimeProvider.System);
+    private readonly Windows.UI.ViewManagement.UISettings _uiSettings = new();
+
+    // Tray flyouts follow the Windows (taskbar) mode, not the app mode.
+    private void ApplySystemTheme()
+    {
+        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+        var light = key?.GetValue("SystemUsesLightTheme") is int value && value != 0;
+        Root.RequestedTheme = light ? ElementTheme.Light : ElementTheme.Dark;
+    }
 
     public FlyoutWindow()
     {
@@ -33,6 +42,8 @@ public sealed partial class FlyoutWindow : Window
             presenter.SetBorderAndTitleBar(true, false);
         }
         Dwm.SetRoundedCorners(_hwnd);
+        ApplySystemTheme();
+        _uiSettings.ColorValuesChanged += (_, _) => DispatcherQueue.TryEnqueue(ApplySystemTheme);
         Activated += (_, e) => { if (e.WindowActivationState == WindowActivationState.Deactivated) Hide(); };
         var escape = new KeyboardAccelerator { Key = VirtualKey.Escape };
         escape.Invoked += (_, e) => { Hide(); e.Handled = true; };

@@ -16,7 +16,7 @@ Date: 2026-09-25. Windows App SDK 2.5.1. winget 1.29.380 (local and runner after
 ## Notes
 
 - **S1, always-on-top:** WinUI 3 windows refuse `WS_EX_TOPMOST` on SDK 2.5.1 and 2.2.0. That holds for `OverlappedPresenter.IsAlwaysOnTop` and for `SetWindowPos(HWND_TOPMOST)` from inside or outside the process. It also holds with the presenter configuration, backdrop, `IsShownInSwitchers` and cloaking all removed. A plain Win32 window in the same process accepts it. Related: microsoft-ui-xaml#9990. The flyout relies on foreground activation instead: a tray click, the hotkey and a Start-menu launch all grant it.
-- **S1, theme:** the flyout follows the app mode (light on the test PC). Spec §4.2 requires the Windows mode, so the theme must be set from `SystemUsesLightTheme` and tracked.
+- **S1, theme:** the flyout now follows the Windows mode (`SystemUsesLightTheme`) and updates live. Verified dark on a light-app, dark-taskbar PC.
 - **S4:** the out-of-proc COM vectors do not expose `IIterable`. `foreach`/LINQ over `Matches` throws `E_NOINTERFACE`, so always index (`Count` + `[i]`). `GetApplicableInstaller()` reports the scope for a fresh install; update routing must use the installed scope.
 - **S1, multi-monitor:** the flyout now moves onto the target monitor before sizing, so a DPI change can't rescale it. A real check with the taskbar on a 125/150% monitor (and one left of the primary) is still owed; Plan 4 must run it.
 - **S1, launch:** the flyout opens on every launch except `--startup`. The Explorer relaunch used to drop elevation can't forward arguments; if later verbs need them, Plan 4 must use shell dispatch instead. Maintenance verbs run before the elevation check so the elevated uninstaller can clean up.
