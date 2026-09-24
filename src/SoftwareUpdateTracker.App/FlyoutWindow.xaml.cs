@@ -49,6 +49,7 @@ public sealed partial class FlyoutWindow : Window
         AppWindow.Show(false);
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
+            if (_toggle.IsOpen) return;
             AppWindow.Hide();
             Efficiency.EnterIdle();
         });
@@ -97,6 +98,8 @@ public sealed partial class FlyoutWindow : Window
         var (work, dpi) = Screens.TaskbarMonitor();
         Root.Measure(new Windows.Foundation.Size(FlyoutPlacement.WidthDip, double.PositiveInfinity));
         var rect = FlyoutPlacement.Compute(work, dpi, Root.DesiredSize.Height);
+        // Move onto the target monitor first so a DPI change can't rescale the final size.
+        AppWindow.Move(new PointInt32(rect.X, rect.Y));
         AppWindow.MoveAndResize(new RectInt32(rect.X, rect.Y, rect.Width, rect.Height));
     }
 

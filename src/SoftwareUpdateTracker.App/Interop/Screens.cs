@@ -11,7 +11,7 @@ internal static class Screens
         var monitor = NativeMethods.MonitorFromWindow(taskbar, NativeMethods.MONITOR_DEFAULTTOPRIMARY);
         var info = new NativeMethods.MONITORINFO { cbSize = (uint)Marshal.SizeOf<NativeMethods.MONITORINFO>() };
         NativeMethods.GetMonitorInfoW(monitor, ref info);
-        NativeMethods.GetDpiForMonitor(monitor, 0, out var dpi, out _);
+        if (NativeMethods.GetDpiForMonitor(monitor, 0, out var dpi, out _) != 0 || dpi == 0) dpi = 96;
         var r = info.rcWork;
         return (new PixelRect(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top), dpi);
     }

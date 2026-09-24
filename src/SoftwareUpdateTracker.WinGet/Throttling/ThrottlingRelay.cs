@@ -7,6 +7,7 @@ namespace SoftwareUpdateTracker.WinGet.Throttling;
 public sealed class ThrottlingRelay(TimeProvider time, IReadOnlySet<int>? allowedPorts = null) : IAsyncDisposable
 {
     private const int MaxHeadBytes = 8192;
+    private static readonly TimeSpan MaxSleep = TimeSpan.FromMilliseconds(100);
 
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly TokenBucket _bucket = new(time);
@@ -91,12 +92,13 @@ public sealed class ThrottlingRelay(TimeProvider time, IReadOnlySet<int>? allowe
 
     private async Task CopyThrottledAsync(Stream from, Stream to, CancellationToken ct)
     {
-        var buffer = new byte[16 * 1024];
+        var buffer = new byte[TokenBucket.ChunkSize(0)];
         int read;
-        while ((read = await from.ReadAsync(buffer, ct)) > 0)
+        while ((read = await from.ReadAsync(buffer.AsMemory(0, TokenBucket.ChunkSize(_bucket.BytesPerSecond)), ct)) > 0)
         {
-            var wait = _bucket.Take(read);
-            if (wait > TimeSpan.Zero) await Task.Delay(wait, time, ct);
+            // Sleep in short slices so limit changes apply within ~100 ms.
+            for (var wait = _bucket.Take(read); wait > TimeSpan.Zero; wait = _bucket.PendingDelay())
+                await Task.Delay(wait < MaxSleep ? wait : MaxSleep, time, ct);
             await to.WriteAsync(buffer.AsMemory(0, read), ct);
             var now = time.GetTimestamp();
             Interlocked.CompareExchange(ref _firstByteAt, now, 0);

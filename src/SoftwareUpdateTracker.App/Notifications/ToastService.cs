@@ -50,13 +50,27 @@ internal sealed class ToastService
             var value = (args as ToastActivatedEventArgs)?.Arguments ?? "";
             ActionInvoked?.Invoke(this, value.StartsWith("action=", StringComparison.Ordinal) ? value[7..] : "open");
         };
-        _shown.Add(toast);
+        toast.Dismissed += (_, _) => Forget(toast);
+        toast.Failed += (_, _) => Forget(toast);
+        lock (_shown) _shown.Add(toast);
         ToastNotificationManager.CreateToastNotifier(Aumid).Show(toast);
+    }
+
+    // Clicks are handled in-process only, so toasts must not outlive the process.
+    public void ClearHistory()
+    {
+        try { ToastNotificationManager.History.Clear(Aumid); } catch (Exception) { }
+        lock (_shown) _shown.Clear();
     }
 
     public static void RemoveRegistration()
     {
         try { ToastNotificationManager.History.Clear(Aumid); } catch (Exception) { }
         Registry.CurrentUser.DeleteSubKeyTree(KeyPath, throwOnMissingSubKey: false);
+    }
+
+    private void Forget(ToastNotification toast)
+    {
+        lock (_shown) _shown.Remove(toast);
     }
 }

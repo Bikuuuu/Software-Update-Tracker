@@ -52,6 +52,29 @@ public class TokenBucketTests
     }
 
     [Fact]
-    public void TinyLimit_StillMakesProgress() =>
-        Assert.Equal(TimeSpan.FromSeconds(16), new TokenBucket(new FakeTimeProvider()) { BytesPerSecond = 1024 }.Take(16 * 1024));
+    public void ChunkSize_IsAtMostATenthOfASecond()
+    {
+        Assert.Equal(16 * 1024, TokenBucket.ChunkSize(0));
+        Assert.Equal(102, TokenBucket.ChunkSize(1024));
+        Assert.Equal(1, TokenBucket.ChunkSize(5));
+        Assert.Equal(16 * 1024, TokenBucket.ChunkSize(100_000_000));
+    }
+
+    [Fact]
+    public void RaisingTheLimit_ShortensPendingDebt()
+    {
+        var bucket = new TokenBucket(new FakeTimeProvider()) { BytesPerSecond = 1000 };
+        bucket.Take(1000);
+        bucket.BytesPerSecond = 10_000;
+        Assert.Equal(TimeSpan.FromMilliseconds(100), bucket.PendingDelay());
+    }
+
+    [Fact]
+    public void SwitchingToUnlimited_ClearsPendingDebt()
+    {
+        var bucket = new TokenBucket(new FakeTimeProvider()) { BytesPerSecond = 1000 };
+        bucket.Take(5000);
+        bucket.BytesPerSecond = 0;
+        Assert.Equal(TimeSpan.Zero, bucket.PendingDelay());
+    }
 }

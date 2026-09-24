@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using SoftwareUpdateTracker.App.Interop;
 using SoftwareUpdateTracker.Core;
+using SoftwareUpdateTracker.Core.Launch;
 
 namespace SoftwareUpdateTracker.App;
 
@@ -14,15 +15,18 @@ public static class Program
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
-        if (ProcessInfo.IsElevated())
+        var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+
+        // Maintenance verbs run as-is, even elevated (the uninstaller runs elevated).
+        if (LaunchPolicy.IsMaintenanceVerb(args))
         {
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{Environment.ProcessPath}\"") { UseShellExecute = false });
+            Notifications.ToastService.RemoveRegistration();
             return 0;
         }
 
-        if (Environment.GetCommandLineArgs().Contains("--cleanup-notifications"))
+        if (LaunchPolicy.ShouldRelaunchUnelevated(ProcessInfo.GetElevationType()))
         {
-            Notifications.ToastService.RemoveRegistration();
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{Environment.ProcessPath}\"") { UseShellExecute = false });
             return 0;
         }
 

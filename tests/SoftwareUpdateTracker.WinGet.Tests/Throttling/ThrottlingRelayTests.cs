@@ -45,6 +45,25 @@ public class ThrottlingRelayTests
     }
 
     [Fact]
+    public async Task LiftingTheLimitMidTransfer_TakesEffectQuickly()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (server, port) = StartServer(300_000, ct);
+        await using var relay = new ThrottlingRelay(TimeProvider.System, new HashSet<int> { port }) { LimitBytesPerSecond = 2_000 };
+        relay.Start();
+
+        var stopwatch = Stopwatch.StartNew();
+        var read = ConnectAndReadAsync(relay.Port, port, ct);
+        await Task.Delay(1000, ct);
+        relay.LimitBytesPerSecond = 0;
+        var (_, received) = await read;
+
+        Assert.Equal(300_000, received);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(3), $"took {stopwatch.Elapsed}");
+        await server;
+    }
+
+    [Fact]
     public async Task DisallowedPort_IsForbidden()
     {
         var ct = TestContext.Current.CancellationToken;

@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using SoftwareUpdateTracker.App.Tray;
 using SoftwareUpdateTracker.Core;
+using SoftwareUpdateTracker.Core.Launch;
 
 namespace SoftwareUpdateTracker.App;
 
@@ -50,12 +51,17 @@ public partial class App : Application
         {
             File.WriteAllText(path, $"{{\"trayAdded\":{(tray.Added ? "true" : "false")}}}");
             Quit();
+            return;
         }
+
+        if (LaunchPolicy.OpenFlyoutOnLaunch(Environment.GetCommandLineArgs().Skip(1).ToArray()))
+            flyout.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => flyout.Show());
     }
 
     private void Quit()
     {
         _tray?.Dispose();
+        _toasts.ClearHistory();
         _flyout?.Close();
         Exit();
     }

@@ -16,7 +16,7 @@ public sealed class TokenBucket(TimeProvider time)
             {
                 Refill();
                 _bytesPerSecond = Math.Max(0, value);
-                _tokens = Math.Min(_tokens, _bytesPerSecond);
+                _tokens = _bytesPerSecond == 0 ? 0 : Math.Min(_tokens, _bytesPerSecond);
             }
         }
     }
@@ -31,6 +31,23 @@ public sealed class TokenBucket(TimeProvider time)
             return _tokens >= 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(-_tokens / _bytesPerSecond);
         }
     }
+
+    // Remaining wait for debt already taken; reflects limit changes immediately.
+    public TimeSpan PendingDelay()
+    {
+        lock (_gate)
+        {
+            if (_bytesPerSecond == 0) return TimeSpan.Zero;
+            Refill();
+            return _tokens >= 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(-_tokens / _bytesPerSecond);
+        }
+    }
+
+    // Read size so one grant never exceeds a tenth of a second of data.
+    public static int ChunkSize(long bytesPerSecond) =>
+        bytesPerSecond == 0 ? MaxChunk : (int)Math.Clamp(bytesPerSecond / 10, 1, MaxChunk);
+
+    private const int MaxChunk = 16 * 1024;
 
     private void Refill()
     {
