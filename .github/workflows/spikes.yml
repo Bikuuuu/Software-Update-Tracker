@@ -36,8 +36,8 @@ jobs:
       - name: S4 upgrade with progress
         shell: pwsh
         run: |
-          winget install --id 7zip.7zip --version 26.02 --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
-          dotnet run --project tools/WinGetProbe -c Release --no-build -- upgrade 7zip.7zip
+          winget install --id Notepad++.Notepad++ --version 8.9.7 --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          dotnet run --project tools/WinGetProbe -c Release --no-build -- upgrade Notepad++.Notepad++
       - name: S4 cancel during download
         shell: pwsh
         run: |
