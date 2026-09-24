@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 256 256">
   <defs>
     <radialGradient id="fur" cx="50%" cy="58%" r="60%">
       <stop offset="0" stop-color="#FCCB86"/>
@@ -37,9 +37,9 @@
   </g>
 
   <!-- knitted hood -->
-  <use href="#hoodPath" fill="url(#hood)"/>
-  <use href="#hoodPath" fill="url(#knit)"/>
-  <use href="#hoodPath" fill="none" stroke="#B9577F" stroke-width="3"/>
+  <use xlink:href="#hoodPath" fill="url(#hood)"/>
+  <use xlink:href="#hoodPath" fill="url(#knit)"/>
+  <use xlink:href="#hoodPath" fill="none" stroke="#B9577F" stroke-width="3"/>
 
   <!-- face -->
   <ellipse cx="128" cy="140" rx="78" ry="74" fill="url(#fur)"/>
@@ -61,8 +61,8 @@
   <path d="M128 183 L128 189 M119 193 Q123.5 197 128 191 Q132.5 197 137 193" fill="none" stroke="#9A5B45" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
 
   <!-- scarf wrapped under the chin -->
-  <use href="#bandPath" fill="#F29BBE"/>
-  <use href="#bandPath" fill="url(#rib)"/>
+  <use xlink:href="#bandPath" fill="#F29BBE"/>
+  <use xlink:href="#bandPath" fill="url(#rib)"/>
   <path d="M44 194 C80 214 176 214 212 194" fill="none" stroke="#C9608C" stroke-opacity=".5" stroke-width="2.5"/>
   <path d="M47 198 C82 217 174 217 209 198" fill="none" stroke="#F9C6DA" stroke-width="4" stroke-linecap="round"/>
 
@@ -76,14 +76,14 @@
     </g>
   </g>
   <g transform="translate(92 134) rotate(-8)">
-    <use href="#heart" fill="none" stroke="#9C7026" stroke-width="7.5" stroke-linejoin="round"/>
-    <use href="#heart" fill="url(#lens)" stroke="#F2C866" stroke-width="4" stroke-linejoin="round"/>
+    <use xlink:href="#heart" fill="none" stroke="#9C7026" stroke-width="7.5" stroke-linejoin="round"/>
+    <use xlink:href="#heart" fill="url(#lens)" stroke="#F2C866" stroke-width="4" stroke-linejoin="round"/>
     <ellipse cx="-14" cy="-9" rx="8.5" ry="4.5" transform="rotate(-35 -14 -9)" fill="#fff" opacity=".6"/>
     <circle cx="-2" cy="-4" r="2.4" fill="#fff" opacity=".7"/>
   </g>
   <g transform="translate(164 134) rotate(8)">
-    <use href="#heart" fill="none" stroke="#9C7026" stroke-width="7.5" stroke-linejoin="round"/>
-    <use href="#heart" fill="url(#lens)" stroke="#F2C866" stroke-width="4" stroke-linejoin="round"/>
+    <use xlink:href="#heart" fill="none" stroke="#9C7026" stroke-width="7.5" stroke-linejoin="round"/>
+    <use xlink:href="#heart" fill="url(#lens)" stroke="#F2C866" stroke-width="4" stroke-linejoin="round"/>
     <ellipse cx="-14" cy="-9" rx="8.5" ry="4.5" transform="rotate(-35 -14 -9)" fill="#fff" opacity=".6"/>
     <circle cx="-2" cy="-4" r="2.4" fill="#fff" opacity=".7"/>
   </g>

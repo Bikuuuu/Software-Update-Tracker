@@ -1,0 +1,51 @@
+name: Spikes
+on:
+  workflow_dispatch:
+  push:
+    branches: [plan-01-foundation]
+    paths:
+      - '.github/workflows/spikes.yml'
+      - 'tools/**'
+permissions:
+  contents: read
+jobs:
+  winget:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: S5 elevation of the runner
+        shell: pwsh
+        run: whoami /groups | Select-String 'Mandatory Label'
+      - name: S8 winget on the runner
+        shell: pwsh
+        run: |
+          Write-Host "preinstalled winget: $(winget --version)"
+          Install-Module Microsoft.WinGet.Client -Force -Scope CurrentUser -Repository PSGallery
+          Repair-WinGetPackageManager -Latest -Force
+          Write-Host "updated winget: $(winget --version)"
+      - name: Build tools
+        run: |
+          dotnet build tools/WinGetProbe -c Release
+          dotnet build tools/RelayHost -c Release
+      - name: S4 list
+        run: dotnet run --project tools/WinGetProbe -c Release --no-build -- list
+      - name: S4 upgrade with progress
+        shell: pwsh
+        run: |
+          winget install --id Notepad++.Notepad++ --version 8.9.7 --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          dotnet run --project tools/WinGetProbe -c Release --no-build -- upgrade Notepad++.Notepad++
+      - name: S4 cancel during download
+        shell: pwsh
+        run: |
+          winget install --id VideoLAN.VLC --version 3.0.20 --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          dotnet run --project tools/WinGetProbe -c Release --no-build -- cancel VideoLAN.VLC 3000
+      - name: S6 speed limit through the relay
+        shell: pwsh
+        run: |
+          winget settings --enable ProxyCommandLineOptions
+          winget uninstall --id VideoLAN.VLC --exact --silent --disable-interactivity
+          dotnet run --project tools/RelayHost -c Release --no-build -- 2000 winget install --id VideoLAN.VLC --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity

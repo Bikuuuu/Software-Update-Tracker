@@ -30,7 +30,7 @@ Software Update Tracker is a Windows 11 tray app that keeps the apps you choose 
 
 | Topic | Decision |
 |---|---|
-| Audience | Public GitHub repo, MIT license. Private until 1.0 |
+| Audience | Public GitHub repo, MIT license. Public |
 | Name | "Software Update Tracker" everywhere |
 | OS | Windows 11 only |
 | Stack | C#, .NET 10 (LTS), WinUI 3 (Windows App SDK, pinned version), unpackaged, self-contained, x64 |
@@ -42,7 +42,7 @@ Software Update Tracker is a Windows 11 tray app that keeps the apps you choose 
 | Look | Match Windows: system mode and accent color, acrylic, Segoe UI Variable, Segoe Fluent Icons |
 | Icon | Original vector hamster (pink knitted hood, gold heart sunglasses). Detailed art at 32 px and up, simplified art for 16–24 px |
 | Extras in v1 | Skip version, History, What's new link, wait N days before auto-install, cancel, self-update, pause during games, global shortcut, download speed limit |
-| Testing | Automated on GitHub-hosted runners, plus the user's manual checklist on a real PC. No Hyper-V, Sandbox or VMs, because FACEIT Anti-Cheat conflicts with them |
+| Testing | Automated on GitHub-hosted runners, plus a manual checklist on a real PC. No Hyper-V, Sandbox or VMs on the test PC, because some anti-cheat software conflicts with them |
 
 ## 4. User experience
 
@@ -194,9 +194,10 @@ README.md  LICENSE  .gitignore  .gitattributes  Directory.Build.props  global.js
 
 ### 5.3 Key dependencies (all versions pinned)
 - .NET 10 SDK and runtime, self-contained.
-- Windows App SDK 2.x: the newest release that contains the fix for unpackaged self-contained toast registration (WindowsAppSDK #6774). Pinned; it moves up only after a re-test.
+- Windows App SDK 2.5.1, pinned; it moves up only after a re-test.
 - `Microsoft.WindowsPackageManager.ComInterop` 1.29.x, matching the minimum supported winget.
-- Tray icon: H.NotifyIcon.WinUI or WinUIEx TrayIcon, chosen in spike S2.
+- Tray icon: raw `Shell_NotifyIconW` (NOTIFYICON_VERSION_4) on a hidden window; no third-party library.
+- Toasts: `Windows.UI.Notifications` with our own HKCU `AppUserModelId` key. `AppNotificationManager` can't register in self-contained apps (WindowsAppSDK #6774), and the toolkit fallback pulls a vulnerable `System.Drawing.Common`.
 - CommunityToolkit.Mvvm.
 - xUnit for tests.
 - Inno Setup 7.1.
@@ -413,8 +414,8 @@ These are measured with `scripts/resource-check.ps1` before each release. A rele
 | View-model | State → texts, buttons and progress for every row state in §4.3 | CI, every push |
 | winget integration | Read-only listing and metadata against real winget | Locally; on CI if winget exists |
 | Install tests | Silent install → app `--self-test` → upgrade an older version of a small test package through the app's pipeline → silent mode task on/off → speed-limit path → uninstall → leftover scan (file, registry and task snapshot diff) | GitHub-hosted runner, each release |
-| Resource check | §9 budgets | User's PC, before each release |
-| Manual checklist | `docs/manual-test-checklist.md`: real UAC prompt, dark/light mode, accent colors, 100/125/150/200% scaling, two monitors, keyboard-only, Narrator, high contrast, game deferral, metered connection, Battery saver, UAC declined, self-update from the previous version, leftover scan after uninstall | User's PC, before each release |
+| Resource check | §9 budgets | A real PC, before each release |
+| Manual checklist | `docs/manual-test-checklist.md`: real UAC prompt, dark/light mode, accent colors, 100/125/150/200% scaling, two monitors, keyboard-only, Narrator, high contrast, game deferral, metered connection, Battery saver, UAC declined, self-update from the previous version, leftover scan after uninstall | A real PC, before each release |
 
 The runner limitations (Windows Server, no UAC prompt, no real desktop visuals) are covered by the manual checklist.
 
@@ -432,6 +433,8 @@ Spikes run first. Each one ends with a keep-or-change decision recorded in the p
 | S6 | CLI `--proxy` through the CONNECT relay really caps winget downloads | Drop the limit to self-update only, and tell the user |
 | S7 | Baseline idle RAM, CPU and GPU of a minimal WinUI 3 tray app with trimming and EcoQoS | Tune; revisit budgets with the user |
 | S8 | winget availability on the `windows-2025` runner | Install App Installer in the workflow |
+
+Outcomes (2026-09-25) are recorded in [spikes.md](spikes.md). Two of them change the design: the flyout is not always-on-top (WinUI 3 windows refuse `WS_EX_TOPMOST`; focus from the tray click covers it), and S3 uses `Windows.UI.Notifications` directly (§5.3).
 
 ## 14. Delivery phases
 

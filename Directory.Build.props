@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Platforms>x64</Platforms>
+    <Product>Software Update Tracker</Product>
+    <Company>Software Update Tracker</Company>
+    <Copyright>Copyright (c) 2026 Bikuuuu</Copyright>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+</Project>
