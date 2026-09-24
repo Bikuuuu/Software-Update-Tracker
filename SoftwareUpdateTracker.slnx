@@ -21,5 +21,11 @@
     <Project Path="tools/IconGen/IconGen.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="tools/RelayHost/RelayHost.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="tools/WinGetProbe/WinGetProbe.csproj">
+      <Platform Project="x64" />
+    </Project>
   </Folder>
 </Solution>
