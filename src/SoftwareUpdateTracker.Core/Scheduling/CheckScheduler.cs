@@ -10,11 +10,15 @@ public enum CheckTrigger
     FlyoutOpened,
 }
 
+// Hand it back to Finished; a check that times out gets a new ticket for its retry.
+public readonly record struct CheckTicket(long Id, CheckTrigger Trigger);
+
 // One timer for the next check, no polling. Answer every CheckDue with Finished.
 public sealed class CheckScheduler : IDisposable
 {
     public static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(1);
     public static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(15);
+    public static readonly TimeSpan CheckTimeout = TimeSpan.FromMinutes(10);
     public static IReadOnlyList<TimeSpan> RetryDelays { get; } = [TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(15)];
 
     private readonly Lock _gate = new();
@@ -22,9 +26,11 @@ public sealed class CheckScheduler : IDisposable
     private readonly ITimer _timer;
     private TimeSpan _interval;
     private DateTimeOffset _dueAt;
-    private CheckTrigger _dueReason = CheckTrigger.Startup;
+    private TimeSpan _dueDelay;
+    private CheckTrigger _dueReason;
     private DateTimeOffset? _lastAttempt;
     private int _failures;
+    private long _ticket;
     private bool _running;
     private bool _online = true;
     private bool _batterySaver;
@@ -33,23 +39,23 @@ public sealed class CheckScheduler : IDisposable
     public CheckScheduler(TimeProvider time, TimeSpan interval)
     {
         _time = time;
-        _interval = interval;
-        _dueAt = time.GetUtcNow() + StartupDelay;
+        _interval = Checked(interval);
+        SetDue(time.GetUtcNow(), StartupDelay, CheckTrigger.Startup);
         _timer = time.CreateTimer(_ => OnTimer(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         lock (_gate) Plan();
     }
 
-    public event EventHandler<CheckTrigger>? CheckDue;
+    public event EventHandler<CheckTicket>? CheckDue;
 
-    // Null while a check runs.
+    // Null while a check runs, and while offline or Battery saver holds checks back.
     public DateTimeOffset? NextCheck
     {
-        get { lock (_gate) return _running ? null : _dueAt; }
+        get { lock (_gate) return _running || !_online || _batterySaver ? null : _dueAt; }
     }
 
     public void CheckNow()
     {
-        CheckTrigger? due;
+        CheckTicket? due;
         lock (_gate) due = Begin(CheckTrigger.Manual);
         Raise(due);
     }
@@ -57,10 +63,12 @@ public sealed class CheckScheduler : IDisposable
     // Refreshes data older than StaleAfter; skipped quietly while offline.
     public void FlyoutOpened()
     {
-        CheckTrigger? due = null;
+        CheckTicket? due = null;
         lock (_gate)
         {
-            var fresh = _lastAttempt is { } last && _time.GetUtcNow() - last <= StaleAfter;
+            var now = _time.GetUtcNow();
+            // A last attempt after now means the clock went back, so the data counts as stale.
+            var fresh = _lastAttempt is { } last && last <= now && now - last <= StaleAfter;
             if (_online && !fresh) due = Begin(CheckTrigger.FlyoutOpened);
         }
         Raise(due);
@@ -69,7 +77,7 @@ public sealed class CheckScheduler : IDisposable
     // Timed checks wait while offline or in Battery saver, then run once both clear.
     public void SetConditions(bool online, bool batterySaver)
     {
-        CheckTrigger? due;
+        CheckTicket? due;
         lock (_gate)
         {
             _online = online;
@@ -81,11 +89,12 @@ public sealed class CheckScheduler : IDisposable
 
     public void SetInterval(TimeSpan interval)
     {
-        CheckTrigger? due;
+        Checked(interval);
+        CheckTicket? due;
         lock (_gate)
         {
             _interval = interval;
-            if (_dueReason == CheckTrigger.Scheduled && _lastAttempt is { } last) _dueAt = last + interval;
+            if (_dueReason == CheckTrigger.Scheduled && _lastAttempt is { } last) SetDue(last, interval, CheckTrigger.Scheduled);
             due = Plan();
         }
         Raise(due);
@@ -94,40 +103,24 @@ public sealed class CheckScheduler : IDisposable
     // After sleep or a clock change: a check that came due runs a minute later.
     public void Resumed()
     {
-        CheckTrigger? due;
+        CheckTicket? due;
         lock (_gate)
         {
             var now = _time.GetUtcNow();
-            if (!_running && _dueAt <= now)
-            {
-                _dueAt = now + StartupDelay;
-                _dueReason = CheckTrigger.Resumed;
-            }
+            if (!_running && _dueAt <= now) SetDue(now, StartupDelay, CheckTrigger.Resumed);
             due = Plan();
         }
         Raise(due);
     }
 
-    public void Finished(bool succeeded)
+    public void Finished(CheckTicket ticket, bool succeeded)
     {
-        CheckTrigger? due;
+        CheckTicket? due;
         lock (_gate)
         {
-            if (!_running) return;
-            _running = false;
-            var now = _time.GetUtcNow();
-            _lastAttempt = now;
-            if (!succeeded && _failures < RetryDelays.Count)
-            {
-                _dueAt = now + RetryDelays[_failures++];
-                _dueReason = CheckTrigger.Retry;
-            }
-            else
-            {
-                _failures = 0;
-                _dueAt = now + _interval;
-                _dueReason = CheckTrigger.Scheduled;
-            }
+            // A check that already timed out answers too late.
+            if (!_running || ticket.Id != _ticket) return;
+            Complete(succeeded);
             due = Plan();
         }
         Raise(due);
@@ -144,13 +137,34 @@ public sealed class CheckScheduler : IDisposable
 
     private void OnTimer()
     {
-        CheckTrigger? due;
-        lock (_gate) due = Plan();
+        CheckTicket? due;
+        lock (_gate)
+        {
+            // Firing mid-check means the check never finished: count it as failed.
+            if (_running && !_disposed) Complete(succeeded: false);
+            due = Plan();
+        }
         Raise(due);
     }
 
+    private void Complete(bool succeeded)
+    {
+        _running = false;
+        var now = _time.GetUtcNow();
+        _lastAttempt = now;
+        if (!succeeded && _failures < RetryDelays.Count)
+        {
+            SetDue(now, RetryDelays[_failures++], CheckTrigger.Retry);
+        }
+        else
+        {
+            _failures = 0;
+            SetDue(now, _interval, CheckTrigger.Scheduled);
+        }
+    }
+
     // Arms the timer, or starts the check when it's already due. Never arms a zero delay.
-    private CheckTrigger? Plan()
+    private CheckTicket? Plan()
     {
         if (_disposed || _running) return null;
         if (!_online || _batterySaver)
@@ -158,22 +172,41 @@ public sealed class CheckScheduler : IDisposable
             _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             return null;
         }
-        var wait = _dueAt - _time.GetUtcNow();
+        var now = _time.GetUtcNow();
+        // After the clock goes back, keep the intended delay instead of waiting out the jump.
+        if (_dueAt - now > _dueDelay) _dueAt = now + _dueDelay;
+        var wait = _dueAt - now;
         if (wait <= TimeSpan.Zero) return Begin(_dueReason);
         _timer.Change(wait, Timeout.InfiniteTimeSpan);
         return null;
     }
 
-    private CheckTrigger? Begin(CheckTrigger trigger)
+    // Timers can't wait longer than about 49 days; the settings offer at most a day.
+    private static TimeSpan Checked(TimeSpan interval)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(interval, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(interval, TimeSpan.FromDays(30));
+        return interval;
+    }
+
+    private void SetDue(DateTimeOffset from, TimeSpan delay, CheckTrigger reason)
+    {
+        _dueAt = from + delay;
+        _dueDelay = delay;
+        _dueReason = reason;
+    }
+
+    private CheckTicket? Begin(CheckTrigger trigger)
     {
         if (_disposed || _running) return null;
         _running = true;
-        _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        return trigger;
+        // While a check runs, the timer is its watchdog.
+        _timer.Change(CheckTimeout, Timeout.InfiniteTimeSpan);
+        return new CheckTicket(++_ticket, trigger);
     }
 
-    private void Raise(CheckTrigger? trigger)
+    private void Raise(CheckTicket? ticket)
     {
-        if (trigger is { } t) CheckDue?.Invoke(this, t);
+        if (ticket is { } t) CheckDue?.Invoke(this, t);
     }
 }

@@ -8,23 +8,30 @@ public sealed class CheckSchedulerTests : IDisposable
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(6);
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 9, 25, 8, 0, 0, TimeSpan.Zero));
+    private readonly List<CheckTicket> _tickets = [];
     private readonly List<CheckTrigger> _checks = [];
     private readonly CheckScheduler _scheduler;
 
     public CheckSchedulerTests()
     {
         _scheduler = new CheckScheduler(_time, Interval);
-        _scheduler.CheckDue += (_, trigger) => _checks.Add(trigger);
+        _scheduler.CheckDue += (_, ticket) =>
+        {
+            _tickets.Add(ticket);
+            _checks.Add(ticket.Trigger);
+        };
     }
 
     public void Dispose() => _scheduler.Dispose();
 
     private void Advance(double minutes) => _time.Advance(TimeSpan.FromMinutes(minutes));
 
+    private void Finish(bool succeeded) => _scheduler.Finished(_tickets[^1], succeeded);
+
     private void CompleteStartupCheck(bool succeeded = true)
     {
         Advance(1);
-        _scheduler.Finished(succeeded);
+        Finish(succeeded);
     }
 
     [Fact]
@@ -52,7 +59,7 @@ public sealed class CheckSchedulerTests : IDisposable
     {
         Advance(1);
         Assert.Null(_scheduler.NextCheck);
-        _scheduler.Finished(true);
+        Finish(true);
         Assert.NotNull(_scheduler.NextCheck);
     }
 
@@ -64,7 +71,7 @@ public sealed class CheckSchedulerTests : IDisposable
         {
             Assert.Equal(_time.GetUtcNow().AddMinutes(minutes), _scheduler.NextCheck);
             Advance(minutes);
-            _scheduler.Finished(false);
+            Finish(false);
         }
         Assert.Equal(_time.GetUtcNow() + Interval, _scheduler.NextCheck);
         Assert.Equal([CheckTrigger.Startup, CheckTrigger.Retry, CheckTrigger.Retry, CheckTrigger.Retry], _checks);
@@ -75,9 +82,9 @@ public sealed class CheckSchedulerTests : IDisposable
     {
         CompleteStartupCheck(succeeded: false);
         Advance(1);
-        _scheduler.Finished(true);
+        Finish(true);
         _time.Advance(Interval);
-        _scheduler.Finished(false);
+        Finish(false);
         Assert.Equal(_time.GetUtcNow().AddMinutes(1), _scheduler.NextCheck);
     }
 
@@ -94,7 +101,7 @@ public sealed class CheckSchedulerTests : IDisposable
     public void CheckNow_ReplacesTheStartupCheck()
     {
         _scheduler.CheckNow();
-        _scheduler.Finished(true);
+        Finish(true);
         Advance(1);
         Assert.Equal([CheckTrigger.Manual], _checks);
         Assert.Equal(_time.GetUtcNow().AddMinutes(-1) + Interval, _scheduler.NextCheck);
@@ -204,6 +211,28 @@ public sealed class CheckSchedulerTests : IDisposable
         Assert.Equal([CheckTrigger.Startup, CheckTrigger.Scheduled], _checks);
     }
 
+    [Theory]
+    [InlineData(3)]
+    [InlineData(60)]
+    public void ClockSetBack_KeepsTheSchedule(int days)
+    {
+        CompleteStartupCheck();
+        _time.AdjustTime(_time.GetUtcNow() - TimeSpan.FromDays(days));
+        _scheduler.Resumed();
+        Assert.Equal(_time.GetUtcNow() + Interval, _scheduler.NextCheck);
+        _time.Advance(Interval);
+        Assert.Equal([CheckTrigger.Startup, CheckTrigger.Scheduled], _checks);
+    }
+
+    [Fact]
+    public void OpeningTheFlyout_AfterClockSetBack_Refreshes()
+    {
+        CompleteStartupCheck();
+        _time.AdjustTime(_time.GetUtcNow() - TimeSpan.FromDays(1));
+        _scheduler.FlyoutOpened();
+        Assert.Equal([CheckTrigger.Startup, CheckTrigger.FlyoutOpened], _checks);
+    }
+
     [Fact]
     public void ShorterIntervalAlreadyPassed_ChecksNow()
     {
@@ -232,10 +261,55 @@ public sealed class CheckSchedulerTests : IDisposable
         Assert.Equal(retry, _scheduler.NextCheck);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(31 * 24)]
+    public void IntervalOutOfRange_IsRejected(int hours)
+    {
+        var interval = TimeSpan.FromHours(hours);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CheckScheduler(_time, interval));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _scheduler.SetInterval(interval));
+    }
+
+    [Fact]
+    public void NextCheck_IsNullWhileHeldBack()
+    {
+        _scheduler.SetConditions(online: false, batterySaver: false);
+        Assert.Null(_scheduler.NextCheck);
+        _scheduler.SetConditions(online: true, batterySaver: true);
+        Assert.Null(_scheduler.NextCheck);
+        _scheduler.SetConditions(online: true, batterySaver: false);
+        Assert.NotNull(_scheduler.NextCheck);
+    }
+
+    [Fact]
+    public void HungCheck_TimesOutAndRetries()
+    {
+        Advance(1);
+        Advance(10);
+        Assert.NotNull(_scheduler.NextCheck);
+        Advance(1);
+        Assert.Equal([CheckTrigger.Startup, CheckTrigger.Retry], _checks);
+    }
+
+    [Fact]
+    public void LateFinishFromATimedOutCheck_IsIgnored()
+    {
+        Advance(1);
+        var hung = _tickets[^1];
+        Advance(10);
+        Advance(1);
+        _scheduler.Finished(hung, true);
+        Assert.Null(_scheduler.NextCheck);
+        Finish(true);
+        Assert.Equal(_time.GetUtcNow() + Interval, _scheduler.NextCheck);
+    }
+
     [Fact]
     public void StrayFinished_IsIgnored()
     {
-        _scheduler.Finished(false);
+        _scheduler.Finished(new CheckTicket(42, CheckTrigger.Manual), false);
         Advance(1);
         Assert.Equal([CheckTrigger.Startup], _checks);
     }
