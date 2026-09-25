@@ -2,6 +2,7 @@ using Xunit;
 
 namespace SoftwareUpdateTracker.WinGet.Tests.Integration;
 
+// Asserts over installed packages print no package data: a failure must not reveal installed apps.
 public class WinGetSessionTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -25,9 +26,11 @@ public class WinGetSessionTests
     {
         var session = await RealWinGet.OpenAsync();
         var listed = await session.ListInstalledAsync(Ct);
+        var allHaveLocalIds = listed.All(p => !string.IsNullOrWhiteSpace(p.LocalId));
+        var someMatched = listed.Any(p => p.CatalogId is not null);
         Assert.NotEmpty(listed);
-        Assert.All(listed, p => Assert.False(string.IsNullOrWhiteSpace(p.LocalId)));
-        Assert.Contains(listed, p => p.CatalogId is not null);
+        Assert.True(allHaveLocalIds, "Some installed packages have no local id.");
+        Assert.True(someMatched, "No installed package matched the catalog.");
     }
 
     [Fact]
@@ -35,7 +38,8 @@ public class WinGetSessionTests
     {
         var (session, matched) = await OpenWithAMatchedPackage();
         var found = await session.FindInstalledByIdAsync([matched.CatalogId!], Ct);
-        Assert.Contains(found, p => string.Equals(p.LocalId, matched.LocalId, StringComparison.OrdinalIgnoreCase));
+        var again = found.Any(p => string.Equals(p.LocalId, matched.LocalId, StringComparison.OrdinalIgnoreCase));
+        Assert.True(again, "The listed package wasn't found by its id.");
     }
 
     [Fact]
@@ -43,7 +47,8 @@ public class WinGetSessionTests
     {
         var (session, matched) = await OpenWithAMatchedPackage();
         var found = await session.FindInstalledByNameAsync([matched.Name], Ct);
-        Assert.Contains(found, p => string.Equals(p.CatalogId, matched.CatalogId, StringComparison.OrdinalIgnoreCase));
+        var again = found.Any(p => string.Equals(p.CatalogId, matched.CatalogId, StringComparison.OrdinalIgnoreCase));
+        Assert.True(again, "The listed package wasn't found by its name.");
     }
 
     [Fact]
@@ -68,6 +73,7 @@ public class WinGetSessionTests
     {
         var session = await RealWinGet.OpenAsync();
         var notes = (await session.ListInstalledAsync(Ct)).Select(p => p.ReleaseNotesUrl).OfType<string>().ToList();
-        Assert.All(notes, url => Assert.True(url.StartsWith("https://", StringComparison.Ordinal) || url.StartsWith("http://", StringComparison.Ordinal)));
+        var others = notes.Count(url => !url.StartsWith("https://", StringComparison.Ordinal) && !url.StartsWith("http://", StringComparison.Ordinal));
+        Assert.Equal(0, others);
     }
 }
