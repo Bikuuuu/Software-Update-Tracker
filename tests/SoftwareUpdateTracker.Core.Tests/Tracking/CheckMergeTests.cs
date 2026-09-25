@@ -103,6 +103,15 @@ public class CheckMergeTests
     }
 
     [Fact]
+    public void PackageGoneFromTheCatalog_IsNotInCatalogAndKeepsBookkeeping()
+    {
+        var old = Firefox with { Offer = new Offer { Version = "131.0", FirstSeen = Now.AddDays(-1) } };
+        var check = Assert.Single(CheckMerge.Apply([old], [], Now, [new PackageKey("mozilla.firefox", "WinGet")]));
+        Assert.Equal(AppStatus.NotInCatalog, check.Status);
+        Assert.Same(old, check.App);
+    }
+
+    [Fact]
     public void Id_MatchesIgnoringCase() =>
         Assert.Equal(AppStatus.Available, MergeOne(Firefox with { Id = "mozilla.firefox" }, Package("130.0", "131.0")).Status);
 

@@ -245,4 +245,72 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(6, saved.Settings.CheckIntervalHours);
         Assert.Same(saved, store.Current);
     }
+
+    [Fact]
+    public void LockedFile_IsUnreadableAndNotSavedOver()
+    {
+        new SettingsStore(SettingsPath).Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
+        var saved = File.ReadAllText(SettingsPath);
+        var store = new SettingsStore(SettingsPath);
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.False(store.Load());
+            Assert.True(store.Unreadable);
+            Assert.Empty(store.Current.Apps);
+            Assert.Throws<IOException>(() => store.Update(f => f with { Apps = [new TrackedApp { Id = "B", Source = "winget" }] }));
+        }
+        Assert.Equal(saved, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void UnreadableFile_IsReadAgainOnTheNextUpdate()
+    {
+        new SettingsStore(SettingsPath).Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
+        var store = new SettingsStore(SettingsPath);
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None)) store.Load();
+        var saved = store.Update(f => f with { Apps = [.. f.Apps, new TrackedApp { Id = "B", Source = "winget" }] });
+        Assert.False(store.Unreadable);
+        Assert.Equal(["A", "B"], saved.Apps.Select(a => a.Id));
+    }
+
+    [Fact]
+    public void FolderInPlaceOfTheFile_IsUnreadable()
+    {
+        Directory.CreateDirectory(SettingsPath);
+        var store = new SettingsStore(SettingsPath);
+        Assert.False(store.Load());
+        Assert.True(store.Unreadable);
+        Assert.Throws<IOException>(() => store.Update(f => f));
+        Assert.True(Directory.Exists(SettingsPath));
+    }
+
+    [Fact]
+    public async Task BrieflyLockedFile_IsSavedAfterARetry()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = new SettingsStore(SettingsPath);
+        store.Update(f => f);
+        var held = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(150, ct);
+            await held.DisposeAsync();
+        }, ct);
+        store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
+        await release;
+        Assert.Equal("A", Assert.Single(Loaded(out _).Current.Apps).Id);
+    }
+
+    [Fact]
+    public void LockThatDoesNotClear_FailsTheSaveAndKeepsTheFile()
+    {
+        var store = new SettingsStore(SettingsPath);
+        store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
+        var saved = File.ReadAllText(SettingsPath);
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.Throws<IOException>(() => store.Update(f => f with { Apps = [] }));
+        Assert.Equal(saved, File.ReadAllText(SettingsPath));
+        Assert.False(File.Exists(SettingsPath + ".tmp"));
+        Assert.Equal("A", Assert.Single(store.Current.Apps).Id);
+    }
 }

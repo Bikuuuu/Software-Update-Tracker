@@ -7,5 +7,8 @@ public enum AppStatus
     Skipped,
     Phantom,
     VersionUnknown,
+    // Not installed anymore.
     NotFound,
+    // The catalog no longer has the package.
+    NotInCatalog,
 }

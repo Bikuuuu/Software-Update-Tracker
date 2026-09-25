@@ -116,4 +116,31 @@ public sealed class HistoryStoreTests : IDisposable
         Assert.Empty(store.Entries);
         Assert.Equal("{ broken", File.ReadAllText(HistoryPath + ".bak"));
     }
+
+    [Fact]
+    public void LockedFile_IsUnreadableAndNotSavedOver()
+    {
+        Store().Add(Entry("A", TimeSpan.Zero));
+        var saved = File.ReadAllText(HistoryPath);
+        var store = new HistoryStore(HistoryPath, _time);
+        using (new FileStream(HistoryPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.False(store.Load());
+            Assert.True(store.Unreadable);
+            Assert.Throws<IOException>(() => store.Add(Entry("B", TimeSpan.Zero)));
+            Assert.Throws<IOException>(store.Clear);
+        }
+        Assert.Equal(saved, File.ReadAllText(HistoryPath));
+    }
+
+    [Fact]
+    public void UnreadableFile_IsReadAgainOnTheNextAdd()
+    {
+        Store().Add(Entry("A", TimeSpan.FromHours(1)));
+        var store = new HistoryStore(HistoryPath, _time);
+        using (new FileStream(HistoryPath, FileMode.Open, FileAccess.Read, FileShare.None)) store.Load();
+        store.Add(Entry("B", TimeSpan.Zero));
+        Assert.False(store.Unreadable);
+        Assert.Equal(["B", "A"], store.Entries.Select(e => e.Id));
+    }
 }

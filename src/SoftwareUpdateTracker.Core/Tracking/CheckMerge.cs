@@ -7,13 +7,22 @@ public sealed record AppCheck(TrackedApp App, AppStatus Status, PackageSnapshot?
 
 public static class CheckMerge
 {
-    public static IReadOnlyList<AppCheck> Apply(IReadOnlyList<TrackedApp> apps, IReadOnlyList<PackageSnapshot> packages, DateTimeOffset now) =>
-        apps.Select(app => Merge(app, packages.FirstOrDefault(p => app.Matches(p.Id, p.Source)), now)).ToList();
+    // A missing app is NotInCatalog when notInCatalog lists it, else NotFound.
+    public static IReadOnlyList<AppCheck> Apply(
+        IReadOnlyList<TrackedApp> apps,
+        IReadOnlyList<PackageSnapshot> packages,
+        DateTimeOffset now,
+        IReadOnlyCollection<PackageKey>? notInCatalog = null) =>
+        apps.Select(app => Merge(
+            app,
+            packages.FirstOrDefault(p => app.Matches(p.Id, p.Source)),
+            notInCatalog?.Any(k => app.Matches(k.Id, k.Source)) == true,
+            now)).ToList();
 
-    private static AppCheck Merge(TrackedApp app, PackageSnapshot? package, DateTimeOffset now)
+    private static AppCheck Merge(TrackedApp app, PackageSnapshot? package, bool gone, DateTimeOffset now)
     {
         // Missing or unknown tells us nothing new, so bookkeeping stays.
-        if (package is null) return new AppCheck(app, AppStatus.NotFound, null, false);
+        if (package is null) return new AppCheck(app, gone ? AppStatus.NotInCatalog : AppStatus.NotFound, null, false);
         if (package.Name.Length > 0) app = app with { Name = package.Name };
         if (PackageVersion.Parse(package.InstalledVersion).IsUnknown) return new AppCheck(app, AppStatus.VersionUnknown, package, false);
         if (PackageVersion.Parse(package.AvailableVersion).IsUnknown)
