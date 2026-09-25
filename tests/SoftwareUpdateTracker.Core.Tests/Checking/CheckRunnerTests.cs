@@ -149,6 +149,15 @@ public sealed class CheckRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task SourceProblemCode_IsKeptInTheDetail()
+    {
+        _source.Then(_ => throw new PackageSourceException(
+            CheckProblem.WinGetUnreachable, "winget stopped", new System.Runtime.InteropServices.COMException("RPC", unchecked((int)0x800706BA))));
+        var completed = await StartupCheck();
+        Assert.Equal("winget stopped (0x800706BA)", completed.Detail);
+    }
+
+    [Fact]
     public async Task UnexpectedError_IsLoggedAndRetried()
     {
         _source.Then(_ => Task.FromException<CatalogRead>(new InvalidOperationException("boom")));
@@ -173,6 +182,7 @@ public sealed class CheckRunnerTests : IDisposable
         _time.Advance(CheckRunner.Deadline);
         var completed = await NextCompleted();
         Assert.Equal(CheckProblem.TimedOut, completed.Problem);
+        Assert.Equal("No answer within 9 minutes.", completed.Detail);
         Assert.Equal(_time.GetUtcNow() + CheckScheduler.RetryDelays[0], _scheduler.NextCheck);
     }
 

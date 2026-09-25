@@ -94,11 +94,11 @@ public sealed class CheckRunner : IDisposable
         }
         catch (OperationCanceledException) when (run.IsCancellationRequested)
         {
-            problem = CheckProblem.TimedOut;
+            (problem, detail) = (CheckProblem.TimedOut, $"No answer within {Deadline.TotalMinutes:0} minutes.");
         }
         catch (PackageSourceException e)
         {
-            (problem, detail) = (e.Problem, e.Message);
+            (problem, detail) = (e.Problem, e.Code is null ? e.Message : $"{e.Message} ({e.Code})");
         }
         catch (IOException e)
         {
