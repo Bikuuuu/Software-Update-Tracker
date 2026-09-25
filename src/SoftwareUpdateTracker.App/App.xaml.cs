@@ -3,6 +3,8 @@ using Microsoft.Windows.AppLifecycle;
 using SoftwareUpdateTracker.App.Tray;
 using SoftwareUpdateTracker.Core;
 using SoftwareUpdateTracker.Core.Launch;
+using SoftwareUpdateTracker.Core.Logging;
+using SoftwareUpdateTracker.Core.Storage;
 
 namespace SoftwareUpdateTracker.App;
 
@@ -12,6 +14,7 @@ public partial class App : Application
     private const int MenuTestToast = 5;
     private const int MenuQuit = 9;
     private readonly Notifications.ToastService _toasts = new();
+    private readonly FileLog _log = new(DataPaths.ForCurrentUser().Log, TimeProvider.System);
     private TrayIcon? _tray;
     private FlyoutWindow? _flyout;
 
@@ -28,7 +31,7 @@ public partial class App : Application
         flyout.Prewarm();
         _toasts.ActionInvoked += (_, _) => flyout.DispatcherQueue.TryEnqueue(() => flyout.Show());
         if (_toasts.Register() is string toastError)
-            File.WriteAllText(Path.Combine(Path.GetTempPath(), "sut-toast-error.txt"), toastError);
+            _log.Error($"Toast registration failed: {toastError}");
 
         var tray = new TrayIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "tray.ico"), AppInfo.Name)
         {
