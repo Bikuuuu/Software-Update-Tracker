@@ -206,7 +206,7 @@ public sealed class UpdatesViewModelTests : IDisposable
         Assert.Equal(["Example Editor", "Example Paint"], _vm.Updates.Select(r => r.Name));
         _vm.InstallChanged(Item(InstallStage.Downloading, "Example.Paint", Downloading(180 * MB, 400 * MB), 20 * MB));
         Assert.Equal(["Example Paint", "Example Editor"], _vm.Updates.Select(r => r.Name));
-        Assert.Equal("Downloading · 180 of 400 MB · 20 MB/s", _vm.Updates[0].View.Status);
+        Assert.Equal($"{Nb("180 of 400 MB")} · {Nb("20 MB/s")}", _vm.Updates[0].View.Status);
     }
 
     [Fact]
@@ -351,6 +351,18 @@ public sealed class UpdatesViewModelTests : IDisposable
         Assert.Equal(["Example Editor"], _vm.Updates.Select(r => r.Name));
         Show(Check(AppStatus.Available));
         Assert.Null(_vm.Problem);
+    }
+
+    [Fact]
+    public void GoodCheck_AfterAProblem_ClosesTheBanner()
+    {
+        _vm.CheckFinished(Failed(CheckProblem.WinGetTooOld));
+        Assert.True(_vm.HasProblem);
+        var changed = new List<string?>();
+        _vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Show(Check(AppStatus.Available));
+        Assert.False(_vm.HasProblem);
+        Assert.Contains(nameof(UpdatesViewModel.HasProblem), changed);
     }
 
     [Fact]

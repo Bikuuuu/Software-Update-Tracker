@@ -112,7 +112,7 @@ public sealed record RowView
         return new RowView
         {
             State = RowState.Downloading,
-            Status = Words.Format(Strings.Downloading, amount),
+            Status = amount,
             CanCancel = progress.CanCancel,
             ShowProgress = true,
             Indeterminate = !known,

@@ -48,12 +48,12 @@
   <data name="Hours" xml:space="preserve"><value>{0} h</value></data>
   <data name="Minutes" xml:space="preserve"><value>{0} min</value></data>
   <data name="UnderAMinute" xml:space="preserve"><value>less than a minute</value></data>
-  <data name="SizeKB" xml:space="preserve"><value>{0} KB</value></data>
-  <data name="SizeMB" xml:space="preserve"><value>{0} MB</value></data>
-  <data name="SizeGB" xml:space="preserve"><value>{0} GB</value></data>
-  <data name="PerSecond" xml:space="preserve"><value>{0}/s</value></data>
-  <data name="DownloadedOf" xml:space="preserve"><value>{0} of {1}</value></data>
-  <data name="Downloading" xml:space="preserve"><value>Downloading · {0}</value></data>
+  <!-- Amounts use no-break spaces and a word joiner after the slash, so a wrap never splits a number from its unit. -->
+  <data name="SizeKB" xml:space="preserve"><value>{0}&#160;KB</value></data>
+  <data name="SizeMB" xml:space="preserve"><value>{0}&#160;MB</value></data>
+  <data name="SizeGB" xml:space="preserve"><value>{0}&#160;GB</value></data>
+  <data name="PerSecond" xml:space="preserve"><value>{0}/&#8288;s</value></data>
+  <data name="DownloadedOf" xml:space="preserve"><value>{0}&#160;of&#160;{1}</value></data>
   <data name="Installing" xml:space="preserve"><value>Installing…</value></data>
   <data name="Waiting" xml:space="preserve"><value>Waiting…</value></data>
   <data name="WaitingForOtherInstall" xml:space="preserve"><value>Waiting for another install to finish…</value></data>
@@ -120,6 +120,7 @@
   <data name="ShowSelected" xml:space="preserve"><value>Show selected</value></data>
   <data name="ShowAll" xml:space="preserve"><value>Show all</value></data>
   <data name="ChooseFooter" xml:space="preserve"><value>Nothing is ticked until you choose</value></data>
+  <data name="ChooseFooterTicked" xml:space="preserve"><value>Changes apply as you tick</value></data>
   <data name="Done" xml:space="preserve"><value>Done</value></data>
   <data name="LookingForApps" xml:space="preserve"><value>Looking for installed apps…</value></data>
   <data name="InventoryFailed" xml:space="preserve"><value>The installed apps couldn't be read.</value></data>

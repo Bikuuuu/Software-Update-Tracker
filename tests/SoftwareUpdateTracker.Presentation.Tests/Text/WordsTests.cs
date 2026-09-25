@@ -17,16 +17,16 @@ public class WordsTests
     [InlineData(3 * MB / 2, "1.5 MB")]
     [InlineData(180 * MB, "180 MB")]
     [InlineData(6 * GB / 5, "1.2 GB")]
-    public void Size_UsesTheLargestFittingUnit(ulong bytes, string text) => Assert.Equal(text, Words.Size(bytes));
+    public void Size_UsesTheLargestFittingUnit(ulong bytes, string text) => Assert.Equal(Fixtures.Nb(text), Words.Size(bytes));
 
     [Theory]
     [InlineData(180 * MB, 400 * MB, "180 of 400 MB")]
     [InlineData(GB / 2, 3 * GB / 2, "0.5 of 1.5 GB")]
     [InlineData(180 * MB, 0UL, "180 MB")]
-    public void Downloaded_ShowsBothInTheTotalsUnit(ulong done, ulong total, string text) => Assert.Equal(text, Words.Downloaded(done, total));
+    public void Downloaded_ShowsBothInTheTotalsUnit(ulong done, ulong total, string text) => Assert.Equal(Fixtures.Nb(text), Words.Downloaded(done, total));
 
     [Fact]
-    public void Speed_IsPerSecond() => Assert.Equal(["20 MB/s", "850 KB/s", "0 KB/s"], [Words.Speed(20 * MB), Words.Speed(850 * KB), Words.Speed(-1)]);
+    public void Speed_IsPerSecond() => Assert.Equal([Fixtures.Nb("20 MB/s"), Fixtures.Nb("850 KB/s"), Fixtures.Nb("0 KB/s")], [Words.Speed(20 * MB), Words.Speed(850 * KB), Words.Speed(-1)]);
 
     [Theory]
     [InlineData(30, "just now")]

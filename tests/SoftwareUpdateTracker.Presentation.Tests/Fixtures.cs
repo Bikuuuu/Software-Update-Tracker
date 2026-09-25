@@ -36,6 +36,9 @@ internal static class Fixtures
 
     public static UpgradeProgress Downloading(ulong bytes, ulong total) => new(UpgradeStage.Downloading, bytes, total, total == 0 ? 0 : (double)bytes / total, 0);
 
+    // An amount as shown: no-break spaces, and a word joiner after the slash, so a wrap never splits a number from its unit.
+    public static string Nb(string amount) => amount.Replace(' ', '\u00a0').Replace("/", "/\u2060");
+
     // "Example.Editor" becomes "Example Editor".
     public static string Name(string id) => id.Replace('.', ' ');
 }

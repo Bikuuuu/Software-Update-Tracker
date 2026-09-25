@@ -101,7 +101,11 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
 
     // The problem of the last check, as a banner.
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
     public partial Notice? Problem { get; private set; }
+
+    // What the banner binds to: x:Bind doesn't rerun a function once its argument is null.
+    public bool HasProblem => Problem is not null;
 
     [ObservableProperty]
     public partial bool IsWorking { get; private set; }

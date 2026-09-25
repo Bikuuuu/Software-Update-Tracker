@@ -54,7 +54,7 @@ public class RowViewTests
     public void Downloading_ShowsTheAmountSpeedAndPercent()
     {
         var view = View(Check(AppStatus.Available), Item(InstallStage.Downloading, progress: Downloading(180 * MB, 400 * MB), speed: 20 * MB));
-        Assert.Equal((RowState.Downloading, "Downloading · 180 of 400 MB · 20 MB/s", "45%"), (view.State, view.Status, view.PercentText));
+        Assert.Equal((RowState.Downloading, $"{Nb("180 of 400 MB")} · {Nb("20 MB/s")}", "45%"), (view.State, view.Status, view.PercentText));
         Assert.Equal(45, view.Percent, 3);
         Assert.True(view.ShowProgress && view.CanCancel);
         Assert.False(view.Indeterminate);
@@ -64,7 +64,7 @@ public class RowViewTests
     public void Downloading_OfUnknownSize_HasNoPercent()
     {
         var view = View(Check(AppStatus.Available), Item(InstallStage.Downloading, progress: Downloading(180 * MB, 0)));
-        Assert.Equal(("Downloading · 180 MB", null), (view.Status, view.PercentText));
+        Assert.Equal((Nb("180 MB"), null), (view.Status, view.PercentText));
         Assert.True(view.Indeterminate);
     }
 

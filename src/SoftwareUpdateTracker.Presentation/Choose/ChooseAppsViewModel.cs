@@ -46,11 +46,19 @@ public sealed partial class ChooseAppsViewModel(IAppInventory inventory, Setting
     [ObservableProperty]
     public partial string SelectedText { get; private set; } = "";
 
+    // Nothing starts ticked; once something is, ticks apply as they're made.
+    [ObservableProperty]
+    public partial string FooterText { get; private set; } = "";
+
     [ObservableProperty]
     public partial bool NoMatches { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
     public partial Notice? Problem { get; private set; }
+
+    // What the banner binds to: x:Bind doesn't rerun a function once its argument is null.
+    public bool HasProblem => Problem is not null;
 
     // Reads the installed apps: the plain list first, then again with the lookup matches moved in.
     public void Open()
@@ -163,7 +171,12 @@ public sealed partial class ChooseAppsViewModel(IAppInventory inventory, Setting
         Counts();
     }
 
-    private void Counts() => SelectedText = Words.Format(Strings.SelectedCount, _all.Count(r => r.IsTracked), _all.Count);
+    private void Counts()
+    {
+        var ticked = _all.Count(r => r.IsTracked);
+        SelectedText = Words.Format(Strings.SelectedCount, ticked, _all.Count);
+        FooterText = ticked == 0 ? Strings.ChooseFooter : Strings.ChooseFooterTicked;
+    }
 
     // Reports on the calling thread, unlike Progress<T>.
     private sealed class Reporter<T>(Action<T> report) : IProgress<T>

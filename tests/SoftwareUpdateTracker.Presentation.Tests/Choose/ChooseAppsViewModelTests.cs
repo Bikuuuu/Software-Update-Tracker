@@ -87,6 +87,7 @@ public sealed class ChooseAppsViewModelTests : IDisposable
         await OpenFully();
         Assert.DoesNotContain(_vm.Apps, r => r.IsTracked);
         Assert.Equal("0 of 3 selected", _vm.SelectedText);
+        Assert.Equal("Nothing is ticked until you choose", _vm.FooterText);
     }
 
     [Fact]
@@ -96,6 +97,7 @@ public sealed class ChooseAppsViewModelTests : IDisposable
         await OpenFully();
         Assert.Equal(["Example Paint"], _vm.Apps.Where(r => r.IsTracked).Select(r => r.Name));
         Assert.Equal("1 of 3 selected", _vm.SelectedText);
+        Assert.Equal("Changes apply as you tick", _vm.FooterText);
     }
 
     [Fact]
@@ -188,6 +190,23 @@ public sealed class ChooseAppsViewModelTests : IDisposable
         _inventory.Finish(new AppInventory([Editor], []));
         await Until(() => _vm.Apps.Count == 1);
         Assert.Null(_vm.Problem);
+    }
+
+    [Fact]
+    public async Task ProblemGone_ClosesTheBanner()
+    {
+        _inventory.Error = new PackageSourceException(CheckProblem.WinGetTooOld, "winget 1.11.510 is older than 1.29.280.");
+        _vm.Open();
+        await Until(() => _vm.Problem is not null);
+        Assert.True(_vm.HasProblem);
+        var changed = new List<string?>();
+        _vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        _inventory.Error = null;
+        _vm.RetryCommand.Execute(null);
+        _inventory.Finish(new AppInventory([Editor], []));
+        await Until(() => _vm.Apps.Count == 1);
+        Assert.False(_vm.HasProblem);
+        Assert.Contains(nameof(ChooseAppsViewModel.HasProblem), changed);
     }
 
     [Fact]
