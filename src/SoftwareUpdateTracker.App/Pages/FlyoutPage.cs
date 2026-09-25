@@ -21,15 +21,6 @@ public partial class FlyoutPage : Page
 
     protected bool HasServices => _services is not null;
 
-    // The flyout became visible or hidden; animations run only while it shows.
-    public virtual void Shown()
-    {
-    }
-
-    public virtual void Hidden()
-    {
-    }
-
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         _services = (AppServices)e.Parameter;

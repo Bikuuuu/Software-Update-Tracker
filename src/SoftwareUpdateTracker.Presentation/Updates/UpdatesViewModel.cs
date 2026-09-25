@@ -36,6 +36,7 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     private readonly Dictionary<string, UpdateRow> _rows = new(StringComparer.OrdinalIgnoreCase);
     private DateTimeOffset? _checkedAt;
     private bool _checking;
+    private bool _open;
     private bool _checkAgain;
     private bool _expandedByUser;
     private ITimer? _tick;
@@ -75,6 +76,10 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool IsChecking { get; private set; }
+
+    // The refresh icon turns only while a check runs and the flyout shows (spec §9).
+    [ObservableProperty]
+    public partial bool IsSpinning { get; private set; }
 
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
@@ -121,6 +126,7 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
 
     public void Opened()
     {
+        _open = true;
         _scheduler.FlyoutOpened();
         _tick ??= _time.CreateTimer(_ => _post(Refresh), null, TickEvery, TickEvery);
         Refresh();
@@ -128,8 +134,10 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
 
     public void Closed()
     {
+        _open = false;
         _tick?.Dispose();
         _tick = null;
+        Refresh();
     }
 
     public void CheckStarted()
@@ -387,6 +395,7 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
         var forAll = rows.Count(r => !r.IsRemoved && r.View.CountsForUpdateAll);
         IsEmpty = _settings.Current.Apps.Count == 0 && _rows.Count == 0;
         IsChecking = _checking;
+        IsSpinning = _open && _checking;
         HasUpdates = Updates.Count > 0;
         HasUpToDate = UpToDate.Count > 0;
         UpToDateText = Words.UpToDate(UpToDate.Count);

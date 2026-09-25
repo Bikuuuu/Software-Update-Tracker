@@ -104,7 +104,6 @@ public sealed partial class FlyoutWindow : Window
         // WinUI windows refuse WS_EX_TOPMOST; the flyout relies on foreground activation instead.
         NativeMethods.SetForegroundWindow(_hwnd);
         _services?.Updates.Opened();
-        _page?.Shown();
         OpenChanged?.Invoke(this, EventArgs.Empty);
         // Uncloak one frame later so the first frame is already rendered.
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
@@ -118,7 +117,6 @@ public sealed partial class FlyoutWindow : Window
     {
         if (!_toggle.IsOpen) return;
         _toggle.Closed();
-        _page?.Hidden();
         _services?.Updates.Closed();
         Dwm.SetCloaked(_hwnd, true);
         AppWindow.Hide();
@@ -179,7 +177,6 @@ public sealed partial class FlyoutWindow : Window
         _page = page;
         if (page is null) return;
         page.NaturalHeightChanged += OnNaturalHeightChanged;
-        if (_toggle.IsOpen) page.Shown();
         Fit();
     }
 

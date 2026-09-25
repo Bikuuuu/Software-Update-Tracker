@@ -162,6 +162,20 @@ public sealed class UpdatesViewModelTests : IDisposable
     }
 
     [Fact]
+    public void RefreshIcon_TurnsOnlyWhileTheFlyoutShowsACheck()
+    {
+        _vm.CheckStarted();
+        Assert.False(_vm.IsSpinning);
+        _vm.Opened();
+        Assert.True(_vm.IsSpinning);
+        _vm.Closed();
+        Assert.False(_vm.IsSpinning);
+        _vm.Opened();
+        Show(Check(AppStatus.Available));
+        Assert.False(_vm.IsSpinning);
+    }
+
+    [Fact]
     public void UpdateAll_QueuesAvailableAndFailedRowsOnly()
     {
         _settings.Update(f => f with { Apps = [.. f.Apps, App("Example.Notes", phantom: true), App("Example.Clock", skipped: "2.5.0")] });

@@ -11,7 +11,6 @@ namespace SoftwareUpdateTracker.App.Pages;
 public sealed partial class UpdatesPage : FlyoutPage
 {
     private readonly Storyboard _spin = new() { RepeatBehavior = RepeatBehavior.Forever };
-    private bool _shown;
 
     public UpdatesPage()
     {
@@ -26,34 +25,22 @@ public sealed partial class UpdatesPage : FlyoutPage
 
     public UpdatesViewModel Updates => Services.Updates;
 
-    public override void Shown()
-    {
-        _shown = true;
-        Spinning();
-    }
-
-    public override void Hidden()
-    {
-        _shown = false;
-        Spinning();
-    }
-
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         var first = !HasServices;
         base.OnNavigatedTo(e);
         if (first) Updates.PropertyChanged += OnUpdatesChanged;
+        Spinning();
     }
 
     private void OnUpdatesChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(UpdatesViewModel.IsChecking)) Spinning();
+        if (e.PropertyName == nameof(UpdatesViewModel.IsSpinning)) Spinning();
     }
 
-    // The refresh icon turns while a check runs, and only while the flyout shows.
     private void Spinning()
     {
-        if (_shown && Updates.IsChecking) _spin.Begin();
+        if (Updates.IsSpinning) _spin.Begin();
         else _spin.Stop();
     }
 
