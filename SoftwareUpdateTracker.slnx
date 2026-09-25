@@ -7,12 +7,14 @@
       <Platform Project="x64" />
     </Project>
     <Project Path="src/SoftwareUpdateTracker.Core/SoftwareUpdateTracker.Core.csproj" />
+    <Project Path="src/SoftwareUpdateTracker.Presentation/SoftwareUpdateTracker.Presentation.csproj" />
     <Project Path="src/SoftwareUpdateTracker.WinGet/SoftwareUpdateTracker.WinGet.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SoftwareUpdateTracker.Core.Tests/SoftwareUpdateTracker.Core.Tests.csproj" />
+    <Project Path="tests/SoftwareUpdateTracker.Presentation.Tests/SoftwareUpdateTracker.Presentation.Tests.csproj" />
     <Project Path="tests/SoftwareUpdateTracker.WinGet.Tests/SoftwareUpdateTracker.WinGet.Tests.csproj">
       <Platform Project="x64" />
     </Project>
