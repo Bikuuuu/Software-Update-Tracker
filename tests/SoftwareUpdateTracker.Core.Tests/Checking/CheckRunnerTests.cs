@@ -273,6 +273,22 @@ public sealed class CheckRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task IntervalOfAFileReadLate_TimesTheNextCheck()
+    {
+        _source.Default = Offering("130.0", "131.0");
+        _store.Update(f => f with { Settings = f.Settings with { CheckIntervalHours = 1 } });
+        var store = new SettingsStore(SettingsPath);
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None)) store.Load();
+        using var runner = new CheckRunner(_scheduler, store, _source, _dates, _time, new FileLog(_folder.PathOf("late.log"), _time));
+        var completed = Channel.CreateUnbounded<CheckCompleted>();
+        runner.Completed += (_, e) => completed.Writer.TryWrite(e);
+        _runner.Dispose();
+        _time.Advance(CheckScheduler.StartupDelay);
+        Assert.Equal(CheckProblem.None, (await completed.Reader.ReadAsync(Ct).AsTask().WaitAsync(Wait, Ct)).Problem);
+        Assert.Equal(_time.GetUtcNow() + TimeSpan.FromHours(1), _scheduler.NextCheck);
+    }
+
+    [Fact]
     public async Task DateSaveFailure_KeepsTheMergedRows()
     {
         _source.Default = Offering("130.0", "131.0");

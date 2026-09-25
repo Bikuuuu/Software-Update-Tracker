@@ -372,6 +372,18 @@ public sealed class InstallQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task AppUntrackedDuringTheInstall_LeavesSettingsJsonAlone()
+    {
+        var call = await Start(Firefox);
+        _settings.Update(f => f with { Apps = [Vlc] });
+        // Written behind the store's back, so a save would show.
+        File.WriteAllText(_folder.PathOf("settings.json"), "{ \"marker\": true }");
+        call.Finish(UpgradeResult.Updated);
+        await NextDone();
+        Assert.Contains("marker", File.ReadAllText(_folder.PathOf("settings.json")));
+    }
+
+    [Fact]
     public async Task HistoryThatCantBeSaved_DoesNotStopTheQueue()
     {
         Directory.CreateDirectory(_folder.PathOf("locked.json"));

@@ -64,7 +64,7 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void Save_LeavesNoTempFile()
     {
-        new SettingsStore(SettingsPath).Update(f => f);
+        new SettingsStore(SettingsPath).Update(f => f with { Settings = new AppSettings() });
         Assert.Equal(["settings.json"], Directory.GetFiles(_folder.Root).Select(Path.GetFileName));
     }
 
@@ -247,6 +247,18 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void ChangeThatReturnsTheSameFile_SavesNothing()
+    {
+        var store = new SettingsStore(SettingsPath);
+        store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
+        File.Delete(SettingsPath);
+        var kept = store.Update(f => f);
+        Assert.False(File.Exists(SettingsPath));
+        Assert.Same(store.Current, kept);
+        Assert.Equal("A", Assert.Single(kept.Apps).Id);
+    }
+
+    [Fact]
     public void LockedFile_IsUnreadableAndNotSavedOver()
     {
         new SettingsStore(SettingsPath).Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
@@ -289,7 +301,7 @@ public sealed class SettingsStoreTests : IDisposable
     {
         var ct = TestContext.Current.CancellationToken;
         var store = new SettingsStore(SettingsPath);
-        store.Update(f => f);
+        store.Update(f => f with { Settings = new AppSettings() });
         var held = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
         var release = Task.Run(async () =>
         {
@@ -299,6 +311,25 @@ public sealed class SettingsStoreTests : IDisposable
         store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
         await release;
         Assert.Equal("A", Assert.Single(Loaded(out _).Current.Apps).Id);
+    }
+
+    [Fact]
+    public async Task Current_CanBeReadWhileASaveWaitsForTheFile()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = new SettingsStore(SettingsPath);
+        store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
+        using var held = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
+        var saving = Task.Run(() => Assert.Throws<IOException>(() => store.Update(f => f with { Apps = [] })), ct);
+        // The temp file stays while the save retries its rename, holding the lock.
+        while (!File.Exists(SettingsPath + ".tmp") && !saving.IsCompleted) await Task.Delay(1, ct);
+        Assert.False(saving.IsCompleted, "The save ended before the read was tried.");
+        var apps = -1;
+        var reader = new Thread(() => apps = store.Current.Apps.Count);
+        reader.Start();
+        Assert.True(reader.Join(TimeSpan.FromMilliseconds(150)), "The read waited for the save.");
+        Assert.Equal(1, apps);
+        await saving;
     }
 
     [Fact]

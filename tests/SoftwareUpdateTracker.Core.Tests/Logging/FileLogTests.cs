@@ -56,6 +56,17 @@ public sealed class FileLogTests : IDisposable
     }
 
     [Fact]
+    public void Close_DropsLaterLines()
+    {
+        var log = new FileLog(LogPath, _time);
+        log.Info("before");
+        log.Close();
+        Directory.Delete(_folder.PathOf("logs"), recursive: true);
+        log.Warn("after");
+        Assert.False(Directory.Exists(_folder.PathOf("logs")));
+    }
+
+    [Fact]
     public async Task ParallelWrites_KeepEveryLine()
     {
         var ct = TestContext.Current.CancellationToken;

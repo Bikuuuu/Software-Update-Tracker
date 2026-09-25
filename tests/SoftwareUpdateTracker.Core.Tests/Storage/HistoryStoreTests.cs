@@ -74,9 +74,107 @@ public sealed class HistoryStoreTests : IDisposable
     {
         var store = Store();
         store.Add(Entry("A", TimeSpan.Zero));
-        store.Clear();
+        store.Clear(_time.GetUtcNow());
         Assert.Empty(store.Entries);
         Assert.Empty(Store().Entries);
+    }
+
+    [Fact]
+    public void Clear_KeepsEntriesNewerThanWhatWasShown()
+    {
+        var store = Store();
+        store.Add(Entry("Shown", TimeSpan.FromHours(1)));
+        var shownUpTo = _time.GetUtcNow();
+        _time.Advance(TimeSpan.FromSeconds(1));
+        store.Add(Entry("Later", TimeSpan.Zero));
+        store.Clear(shownUpTo);
+        Assert.Equal(["Later"], Store().Entries.Select(e => e.Id));
+    }
+
+    [Fact]
+    public void Changed_IsRaisedOncePerSavedChange()
+    {
+        var store = Store();
+        var raised = 0;
+        store.Changed += (_, _) => raised++;
+        store.Add(Entry("A", TimeSpan.Zero));
+        store.Clear(_time.GetUtcNow());
+        Assert.Equal(2, raised);
+    }
+
+    [Fact]
+    public void FailedAdd_RaisesNothing()
+    {
+        var blocker = _folder.PathOf("blocker");
+        File.WriteAllText(blocker, "");
+        var store = new HistoryStore(Path.Combine(blocker, "history.json"), _time);
+        var raised = 0;
+        store.Changed += (_, _) => raised++;
+        Assert.ThrowsAny<IOException>(() => store.Add(Entry("A", TimeSpan.Zero)));
+        Assert.Equal(0, raised);
+    }
+
+    [Fact]
+    public void RereadThatSucceeds_IsRaised_EvenWhenTheSaveFails()
+    {
+        Store().Add(Entry("A", TimeSpan.Zero));
+        var store = new HistoryStore(HistoryPath, _time);
+        using (new FileStream(HistoryPath, FileMode.Open, FileAccess.Read, FileShare.None)) store.Load();
+        Directory.CreateDirectory(HistoryPath + ".tmp");
+        var raised = 0;
+        store.Changed += (_, _) => raised++;
+        Assert.Throws<IOException>(() => store.Add(Entry("B", TimeSpan.Zero)));
+        Assert.Equal(1, raised);
+        Assert.False(store.Unreadable);
+        Assert.Equal(["A"], store.Entries.Select(e => e.Id));
+    }
+
+    [Fact]
+    public void Retry_ReadsAnUnreadableFileAgain()
+    {
+        Store().Add(Entry("A", TimeSpan.Zero));
+        var store = new HistoryStore(HistoryPath, _time);
+        var raised = 0;
+        store.Changed += (_, _) => raised++;
+        using (new FileStream(HistoryPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            store.Load();
+            store.Retry();
+            Assert.True(store.Unreadable);
+            Assert.Equal(0, raised);
+        }
+        store.Retry();
+        Assert.False(store.Unreadable);
+        Assert.Equal(["A"], store.Entries.Select(e => e.Id));
+        Assert.Equal(1, raised);
+    }
+
+    [Fact]
+    public void HandlerThatThrows_DoesNotFailTheAdd()
+    {
+        var store = Store();
+        store.Changed += (_, _) => throw new InvalidOperationException("bug");
+        store.Add(Entry("A", TimeSpan.Zero));
+        Assert.Equal(["A"], Store().Entries.Select(e => e.Id));
+    }
+
+    [Fact]
+    public async Task Entries_CanBeReadWhileASaveWaitsForTheFile()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = Store();
+        store.Add(Entry("A", TimeSpan.FromHours(1)));
+        using var held = new FileStream(HistoryPath, FileMode.Open, FileAccess.Read, FileShare.None);
+        var adding = Task.Run(() => Assert.Throws<IOException>(() => store.Add(Entry("B", TimeSpan.Zero))), ct);
+        // The temp file stays while the save retries its rename, holding the lock.
+        while (!File.Exists(HistoryPath + ".tmp") && !adding.IsCompleted) await Task.Delay(1, ct);
+        Assert.False(adding.IsCompleted, "The save ended before the read was tried.");
+        var count = -1;
+        var reader = new Thread(() => count = store.Entries.Count);
+        reader.Start();
+        Assert.True(reader.Join(TimeSpan.FromMilliseconds(150)), "The read waited for the save.");
+        Assert.Equal(1, count);
+        await adding;
     }
 
     [Fact]
@@ -128,7 +226,7 @@ public sealed class HistoryStoreTests : IDisposable
             Assert.False(store.Load());
             Assert.True(store.Unreadable);
             Assert.Throws<IOException>(() => store.Add(Entry("B", TimeSpan.Zero)));
-            Assert.Throws<IOException>(store.Clear);
+            Assert.Throws<IOException>(() => store.Clear(_time.GetUtcNow()));
         }
         Assert.Equal(saved, File.ReadAllText(HistoryPath));
     }
