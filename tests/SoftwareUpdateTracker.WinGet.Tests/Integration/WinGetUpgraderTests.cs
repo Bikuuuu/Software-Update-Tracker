@@ -5,7 +5,12 @@ using Xunit;
 
 namespace SoftwareUpdateTracker.WinGet.Tests.Integration;
 
+// Upgrades change what's installed, so no other test runs beside them.
+[CollectionDefinition(DisableParallelization = true)]
+public class UpgradeCollection;
+
 // Real upgrades, only on GitHub runners, where the CI job installs the old versions first.
+[Collection<UpgradeCollection>]
 public class WinGetUpgraderTests
 {
     private const string NotepadPlusPlus = "Notepad++.Notepad++";
