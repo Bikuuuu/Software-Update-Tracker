@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="CheckNow" xml:space="preserve"><value>Check now</value></data>
+  <data name="Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Back" xml:space="preserve"><value>Back</value></data>
+  <data name="UpdatesSection" xml:space="preserve"><value>Updates</value></data>
+  <data name="UpToDateSection" xml:space="preserve"><value>Up to date</value></data>
+  <data name="Update" xml:space="preserve"><value>Update</value></data>
+  <data name="UpdateAnyway" xml:space="preserve"><value>Update anyway</value></data>
+  <data name="Retry" xml:space="preserve"><value>Retry</value></data>
+  <data name="Details" xml:space="preserve"><value>Details</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="MoreOptions" xml:space="preserve"><value>More options</value></data>
+  <data name="UpdateNow" xml:space="preserve"><value>Update now</value></data>
+  <data name="SkipVersion" xml:space="preserve"><value>Skip this version</value></data>
+  <data name="UndoSkip" xml:space="preserve"><value>Undo skip</value></data>
+  <data name="AutoUpdate" xml:space="preserve"><value>Auto-update</value></data>
+  <data name="WhatsNew" xml:space="preserve"><value>What's new</value></data>
+  <data name="StopTracking" xml:space="preserve"><value>Stop tracking</value></data>
+  <data name="Auto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Removed" xml:space="preserve"><value>Removed</value></data>
+  <data name="Undo" xml:space="preserve"><value>Undo</value></data>
+  <data name="UpdateAll" xml:space="preserve"><value>Update all ({0})</value></data>
+  <data name="EmptyTitle" xml:space="preserve"><value>Choose the apps you want to keep up to date</value></data>
+  <data name="ChooseApps" xml:space="preserve"><value>Choose apps</value></data>
+  <data name="UpToDateOne" xml:space="preserve"><value>1 app is up to date</value></data>
+  <data name="UpToDateMany" xml:space="preserve"><value>{0} apps are up to date</value></data>
+  <data name="UpdatesReadyOne" xml:space="preserve"><value>1 update ready</value></data>
+  <data name="UpdatesReadyMany" xml:space="preserve"><value>{0} updates ready</value></data>
+  <data name="AllUpToDate" xml:space="preserve"><value>Up to date</value></data>
+  <data name="SummaryChecked" xml:space="preserve"><value>{0} · checked {1}</value></data>
+  <data name="Checking" xml:space="preserve"><value>Checking for updates…</value></data>
+  <data name="NotCheckedYet" xml:space="preserve"><value>Not checked yet</value></data>
+  <data name="NextCheckIn" xml:space="preserve"><value>Next check in {0}</value></data>
+  <data name="NextCheckOnHold" xml:space="preserve"><value>Next check is on hold</value></data>
+  <data name="JustNow" xml:space="preserve"><value>just now</value></data>
+  <data name="MinutesAgo" xml:space="preserve"><value>{0} min ago</value></data>
+  <data name="HoursAgo" xml:space="preserve"><value>{0} h ago</value></data>
+  <data name="DayAgo" xml:space="preserve"><value>1 day ago</value></data>
+  <data name="DaysAgo" xml:space="preserve"><value>{0} days ago</value></data>
+  <data name="ReleasedToday" xml:space="preserve"><value>Today</value></data>
+  <data name="ReleasedYesterday" xml:space="preserve"><value>Yesterday</value></data>
+  <data name="HoursMinutes" xml:space="preserve"><value>{0} h {1} min</value></data>
+  <data name="Hours" xml:space="preserve"><value>{0} h</value></data>
+  <data name="Minutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="UnderAMinute" xml:space="preserve"><value>less than a minute</value></data>
+  <!-- Amounts use no-break spaces and a word joiner after the slash, so a wrap never splits a number from its unit. -->
+  <data name="SizeKB" xml:space="preserve"><value>{0}&#160;KB</value></data>
+  <data name="SizeMB" xml:space="preserve"><value>{0}&#160;MB</value></data>
+  <data name="SizeGB" xml:space="preserve"><value>{0}&#160;GB</value></data>
+  <data name="PerSecond" xml:space="preserve"><value>{0}/&#8288;s</value></data>
+  <data name="DownloadedOf" xml:space="preserve"><value>{0}&#160;of&#160;{1}</value></data>
+  <data name="Installing" xml:space="preserve"><value>Installing…</value></data>
+  <data name="Waiting" xml:space="preserve"><value>Waiting…</value></data>
+  <data name="WaitingForOtherInstall" xml:space="preserve"><value>Waiting for another install to finish…</value></data>
+  <data name="AppRunning" xml:space="preserve"><value>{0} is running</value></data>
+  <data name="NeedsAdmin" xml:space="preserve"><value>Needs admin permission</value></data>
+  <data name="RestartToFinish" xml:space="preserve"><value>Restart to finish</value></data>
+  <data name="UpdatedTo" xml:space="preserve"><value>Updated to {0}</value></data>
+  <data name="PhantomStatus" xml:space="preserve"><value>Installed, but Windows still reports the old version</value></data>
+  <data name="VersionUnknown" xml:space="preserve"><value>Version unknown · this app updates itself</value></data>
+  <data name="NotInstalledAnymore" xml:space="preserve"><value>Not installed anymore</value></data>
+  <data name="NotFoundInWinGet" xml:space="preserve"><value>Not found in winget</value></data>
+  <data name="PermissionDeclined" xml:space="preserve"><value>Permission was declined</value></data>
+  <data name="SkippedVersion" xml:space="preserve"><value>Skipped {0}</value></data>
+  <data name="DetailsCode" xml:space="preserve"><value>Code: {0}</value></data>
+  <data name="Reason_DownloadFailed" xml:space="preserve"><value>The download failed</value></data>
+  <data name="Reason_HashMismatch" xml:space="preserve"><value>The download didn't match the expected file</value></data>
+  <data name="Reason_NoNetwork" xml:space="preserve"><value>No internet connection</value></data>
+  <data name="Reason_DiskFull" xml:space="preserve"><value>Not enough disk space</value></data>
+  <data name="Reason_NotEnoughMemory" xml:space="preserve"><value>Not enough memory</value></data>
+  <data name="Reason_BlockedByPolicy" xml:space="preserve"><value>Blocked by your organization's policy</value></data>
+  <data name="Reason_NoApplicableInstaller" xml:space="preserve"><value>No installer fits this PC</value></data>
+  <data name="Reason_NotSupported" xml:space="preserve"><value>This update isn't supported on this PC</value></data>
+  <data name="Reason_MissingDependency" xml:space="preserve"><value>A required component is missing</value></data>
+  <data name="Reason_InstallerCancelled" xml:space="preserve"><value>The installer was cancelled</value></data>
+  <data name="Reason_NewerInstalled" xml:space="preserve"><value>A newer version is already installed</value></data>
+  <data name="Reason_InstallerFailed" xml:space="preserve"><value>The installer reported an error</value></data>
+  <data name="Reason_WinGetUnavailable" xml:space="preserve"><value>Can't reach winget</value></data>
+  <data name="Reason_Stalled" xml:space="preserve"><value>Download stalled</value></data>
+  <data name="Reason_TookTooLong" xml:space="preserve"><value>Took too long</value></data>
+  <data name="Reason_Other" xml:space="preserve"><value>The update failed</value></data>
+  <data name="Reason_Busy" xml:space="preserve"><value>Another install is running</value></data>
+  <data name="Reason_NoUpdate" xml:space="preserve"><value>This version isn't offered anymore</value></data>
+  <data name="Reason_NotInstalled" xml:space="preserve"><value>Not installed anymore</value></data>
+  <data name="Reason_AppInUse" xml:space="preserve"><value>The app was open</value></data>
+  <data name="Reason_NeedsAdmin" xml:space="preserve"><value>Needs admin permission</value></data>
+  <data name="Reason_PermissionDeclined" xml:space="preserve"><value>Permission was declined</value></data>
+  <data name="Reason_RestartNeeded" xml:space="preserve"><value>Restart to finish</value></data>
+  <data name="Reason_Phantom" xml:space="preserve"><value>Windows still reports the old version</value></data>
+  <data name="WinGetNeedsUpdate" xml:space="preserve"><value>winget needs an update</value></data>
+  <data name="WinGetNeedsUpdateMessage" xml:space="preserve"><value>Get the latest App Installer from the Microsoft Store.</value></data>
+  <data name="OpenStore" xml:space="preserve"><value>Open Store</value></data>
+  <data name="WinGetUnreachable" xml:space="preserve"><value>Can't reach winget right now, retrying</value></data>
+  <data name="CheckTimedOut" xml:space="preserve"><value>The check took too long. It runs again soon.</value></data>
+  <data name="CheckFailed" xml:space="preserve"><value>The check failed. It runs again soon.</value></data>
+  <data name="SettingsNotSaved" xml:space="preserve"><value>Your settings couldn't be saved.</value></data>
+  <data name="SettingsRecovered" xml:space="preserve"><value>Your settings file was damaged, so defaults are in use. A copy was kept as settings.json.bak.</value></data>
+  <data name="SettingsUnreadable" xml:space="preserve"><value>settings.json can't be read, so changes aren't saved until it can be.</value></data>
+  <data name="HistoryRecovered" xml:space="preserve"><value>Your history file was damaged, so history starts empty. A copy was kept as history.json.bak.</value></data>
+  <data name="HistoryUnreadable" xml:space="preserve"><value>history.json can't be read, so new history isn't saved until it can be.</value></data>
+  <data name="SaveFailed" xml:space="preserve"><value>Your change couldn't be saved.</value></data>
+  <data name="TrayTip" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="TrayInstalling" xml:space="preserve"><value>Installing {0}</value></data>
+  <data name="TrayInstallingPercent" xml:space="preserve"><value>Installing {0} ({1}%)</value></data>
+  <data name="TrayChecking" xml:space="preserve"><value>Checking for updates</value></data>
+  <data name="TrayNoApps" xml:space="preserve"><value>No apps chosen</value></data>
+  <data name="MenuOpen" xml:space="preserve"><value>Open</value></data>
+  <data name="MenuCheckNow" xml:space="preserve"><value>Check now</value></data>
+  <data name="MenuUpdateAll" xml:space="preserve"><value>Update all</value></data>
+  <data name="MenuSettings" xml:space="preserve"><value>Settings</value></data>
+  <data name="MenuQuit" xml:space="preserve"><value>Quit</value></data>
+  <data name="ChooseIntro" xml:space="preserve"><value>Pick the apps you want to keep up to date.</value></data>
+  <data name="SearchApps" xml:space="preserve"><value>Search apps</value></data>
+  <data name="SelectedCount" xml:space="preserve"><value>{0} of {1} selected</value></data>
+  <data name="ShowSelected" xml:space="preserve"><value>Show selected</value></data>
+  <data name="ShowAll" xml:space="preserve"><value>Show all</value></data>
+  <data name="ChooseFooter" xml:space="preserve"><value>Nothing is ticked until you choose</value></data>
+  <data name="ChooseFooterTicked" xml:space="preserve"><value>Changes apply as you tick</value></data>
+  <data name="Done" xml:space="preserve"><value>Done</value></data>
+  <data name="LookingForApps" xml:space="preserve"><value>Looking for installed apps…</value></data>
+  <data name="InventoryFailed" xml:space="preserve"><value>The installed apps couldn't be read.</value></data>
+  <data name="NoMatches" xml:space="preserve"><value>No apps match your search</value></data>
+  <data name="UpdatedElsewhere" xml:space="preserve"><value>Updated elsewhere ({0})</value></data>
+  <data name="UpdatedElsewhereIntro" xml:space="preserve"><value>These apps update themselves or through another app, so they can't be tracked here.</value></data>
+  <data name="Joined" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="UpdatedBy_Steam" xml:space="preserve"><value>Updated by Steam</value></data>
+  <data name="UpdatedBy_MicrosoftStore" xml:space="preserve"><value>Updated by Microsoft Store</value></data>
+  <data name="UpdatedBy_WindowsUpdate" xml:space="preserve"><value>Updated by Windows Update</value></data>
+  <data name="UpdatedBy_DriverTool" xml:space="preserve"><value>Updated by its driver tool</value></data>
+  <data name="UpdatedBy_ItSelf" xml:space="preserve"><value>Updates itself</value></data>
+  <data name="UpdatedBy_Unknown" xml:space="preserve"><value>Not in winget</value></data>
+  <data name="AppsSection" xml:space="preserve"><value>Apps</value></data>
+  <data name="AppsTrackedOne" xml:space="preserve"><value>1 app tracked</value></data>
+  <data name="AppsTrackedMany" xml:space="preserve"><value>{0} apps tracked</value></data>
+  <data name="Quit" xml:space="preserve"><value>Quit</value></data>
+  <data name="VersionLabel" xml:space="preserve"><value>Version {0}</value></data>
+</root>

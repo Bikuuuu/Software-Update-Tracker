@@ -28,4 +28,12 @@ public class LaunchPolicyTests
     [InlineData(new[] { "--startup" }, false)]
     public void FlyoutOpensOnLaunch_UnlessStartup(string[] args, bool expected) =>
         Assert.Equal(expected, LaunchPolicy.OpenFlyoutOnLaunch(args));
+
+    [Theory]
+    [InlineData(new[] { "--demo" }, true)]
+    [InlineData(new[] { "--startup", "--demo" }, true)]
+    [InlineData(new[] { "--startup" }, false)]
+    [InlineData(new[] { "demo" }, false)]
+    public void Demo_NeedsTheDemoFlag(string[] args, bool expected) =>
+        Assert.Equal(expected, LaunchPolicy.IsDemo(args));
 }

@@ -30,7 +30,8 @@ public static class Program
             return 0;
         }
 
-        var instance = AppInstance.FindOrRegisterForKey(AppInfo.InstanceKey);
+        // A demo runs next to the real app, not instead of it.
+        var instance = AppInstance.FindOrRegisterForKey(App.IsDemo(args) ? AppInfo.InstanceKey + ".Demo" : AppInfo.InstanceKey);
         if (!instance.IsCurrent)
         {
             NativeMethods.AllowSetForegroundWindow(instance.ProcessId);

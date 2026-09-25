@@ -10,10 +10,10 @@ public static partial class NameKey
     [GeneratedRegex(@"\([^)]*\)|\[[^\]]*\]")]
     private static partial Regex Brackets();
 
-    [GeneratedRegex(@"\b(?:alpha|beta|preview|insiders?|nightly|dev|canary|rc|esr|eap)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:(?:alpha|beta|preview|insiders?|nightly|dev|canary|rc|esr|eap)\d*|pre-?release|early access|developer edition)\b", RegexOptions.IgnoreCase)]
     private static partial Regex Channel();
 
-    [GeneratedRegex(@"\b(?:x64|x86|x86_64|amd64|arm64|64-bit|32-bit)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:x64|x86[-_]64|x86|amd64|arm64|64-?bit|32-?bit)\b", RegexOptions.IgnoreCase)]
     private static partial Regex Architecture();
 
     [GeneratedRegex(@"[™®©]|\bv?\d+(?:[._-]\d+)*\b", RegexOptions.IgnoreCase)]

@@ -17,10 +17,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SoftwareUpdateTracker.Core\SoftwareUpdateTracker.Core.csproj" />
+    <ProjectReference Include="..\SoftwareUpdateTracker.Presentation\SoftwareUpdateTracker.Presentation.csproj" />
+    <ProjectReference Include="..\SoftwareUpdateTracker.WinGet\SoftwareUpdateTracker.WinGet.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\assets\icon\generated\tray.ico" Link="Assets\tray.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\icon\generated\tray-badge.ico" Link="Assets\tray-badge.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\icon\generated\tray-work-*.ico" Link="Assets\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\icon\generated\app-64.png" Link="Assets\app-64.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\icon\hamster-small.svg" Link="Assets\hamster-small.svg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

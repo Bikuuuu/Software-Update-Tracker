@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.UI.Dispatching;
 using SoftwareUpdateTracker.App.Interop;
 
 namespace SoftwareUpdateTracker.App.Tray;
@@ -7,17 +8,21 @@ internal sealed class TrayIcon : IDisposable
 {
     private const uint CallbackMessage = NativeMethods.WM_APP + 1;
     private const string ClassName = "SoftwareUpdateTracker.Tray";
+    private static readonly TimeSpan FrameTime = TimeSpan.FromMilliseconds(120);
     private static NativeMethods.WndProc? s_wndProc;
 
     private readonly uint _taskbarCreated = NativeMethods.RegisterWindowMessageW("TaskbarCreated");
     private readonly nint _hwnd;
-    private string _iconPath;
+    // Icons at the current size, loaded once each.
+    private readonly Dictionary<string, nint> _icons = [];
+    private readonly DispatcherQueueTimer _timer;
+    private IReadOnlyList<string> _frames;
+    private int _frame;
     private string _tooltip;
-    private nint _icon;
 
     public TrayIcon(string iconPath, string tooltip)
     {
-        _iconPath = iconPath;
+        _frames = [iconPath];
         _tooltip = tooltip;
         s_wndProc = WndProc;
         var instance = NativeMethods.GetModuleHandleW(null);
@@ -31,6 +36,13 @@ internal sealed class TrayIcon : IDisposable
         NativeMethods.RegisterClassExW(ref wc);
         // Hidden top-level window: message-only windows miss the TaskbarCreated broadcast.
         _hwnd = NativeMethods.CreateWindowExW(0, ClassName, "", 0, 0, 0, 0, 0, 0, 0, instance, 0);
+        _timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        _timer.Interval = FrameTime;
+        _timer.Tick += (_, _) =>
+        {
+            _frame = (_frame + 1) % _frames.Count;
+            Notify(NativeMethods.NIM_MODIFY);
+        };
     }
 
     public event EventHandler? Activated;
@@ -38,11 +50,12 @@ internal sealed class TrayIcon : IDisposable
     public event EventHandler? CloseRequested;
 
     public bool Added { get; private set; }
-    public IReadOnlyList<(int Id, string Text)> MenuItems { get; set; } = [];
+
+    // Read each time the menu opens, so it's always current.
+    public Func<IReadOnlyList<(int Id, string Text, bool Enabled)>> Menu { get; set; } = () => [];
 
     public bool Show()
     {
-        LoadIcon();
         Added = Notify(NativeMethods.NIM_ADD) || Notify(NativeMethods.NIM_MODIFY);
         if (Added)
         {
@@ -53,11 +66,17 @@ internal sealed class TrayIcon : IDisposable
         return Added;
     }
 
-    public void Update(string iconPath, string tooltip)
+    // One icon, or frames that loop while a check or install runs.
+    public void Update(IReadOnlyList<string> frames, string tooltip)
     {
-        _iconPath = iconPath;
+        if (!frames.SequenceEqual(_frames))
+        {
+            _frames = frames;
+            _frame = 0;
+        }
         _tooltip = tooltip;
-        LoadIcon();
+        if (_frames.Count > 1) _timer.Start();
+        else _timer.Stop();
         Notify(NativeMethods.NIM_MODIFY);
     }
 
@@ -68,7 +87,7 @@ internal sealed class TrayIcon : IDisposable
         uID = 1,
         uFlags = flags,
         uCallbackMessage = CallbackMessage,
-        hIcon = _icon,
+        hIcon = Icon(_frames[_frame]),
         szTip = _tooltip.Length > 127 ? _tooltip[..127] : _tooltip,
         szInfo = "",
         szInfoTitle = "",
@@ -80,12 +99,18 @@ internal sealed class TrayIcon : IDisposable
         return NativeMethods.Shell_NotifyIconW(message, ref data);
     }
 
-    private void LoadIcon()
+    private nint Icon(string path)
     {
+        if (_icons.TryGetValue(path, out var icon)) return icon;
         var size = NativeMethods.GetSystemMetricsForDpi(NativeMethods.SM_CXSMICON, NativeMethods.GetDpiForSystem());
-        var next = NativeMethods.LoadImageW(0, _iconPath, NativeMethods.IMAGE_ICON, size, size, NativeMethods.LR_LOADFROMFILE);
-        if (_icon != 0) NativeMethods.DestroyIcon(_icon);
-        _icon = next;
+        return _icons[path] = NativeMethods.LoadImageW(0, path, NativeMethods.IMAGE_ICON, size, size, NativeMethods.LR_LOADFROMFILE);
+    }
+
+    // A new display size needs icons of a new size.
+    private void ForgetIcons()
+    {
+        foreach (var icon in _icons.Values) if (icon != 0) NativeMethods.DestroyIcon(icon);
+        _icons.Clear();
     }
 
     private nint WndProc(nint hwnd, uint msg, nint wParam, nint lParam)
@@ -105,6 +130,7 @@ internal sealed class TrayIcon : IDisposable
         }
         if (msg == _taskbarCreated)
         {
+            ForgetIcons();
             Show();
             return 0;
         }
@@ -115,7 +141,7 @@ internal sealed class TrayIcon : IDisposable
         }
         if (msg == NativeMethods.WM_DISPLAYCHANGE && Added)
         {
-            LoadIcon();
+            ForgetIcons();
             Notify(NativeMethods.NIM_MODIFY);
         }
         return NativeMethods.DefWindowProcW(hwnd, msg, wParam, lParam);
@@ -124,10 +150,10 @@ internal sealed class TrayIcon : IDisposable
     private void ShowMenu(int x, int y)
     {
         var menu = NativeMethods.CreatePopupMenu();
-        foreach (var (id, text) in MenuItems)
+        foreach (var (id, text, enabled) in Menu())
         {
             if (text == "-") NativeMethods.AppendMenuW(menu, NativeMethods.MF_SEPARATOR, 0, null);
-            else NativeMethods.AppendMenuW(menu, NativeMethods.MF_STRING, (nuint)id, text);
+            else NativeMethods.AppendMenuW(menu, NativeMethods.MF_STRING | (enabled ? 0 : NativeMethods.MF_GRAYED), (nuint)id, text);
         }
         NativeMethods.SetForegroundWindow(_hwnd);
         var command = NativeMethods.TrackPopupMenuEx(menu, NativeMethods.TPM_RETURNCMD | NativeMethods.TPM_RIGHTBUTTON | NativeMethods.TPM_BOTTOMALIGN, x, y, _hwnd, 0);
@@ -138,13 +164,14 @@ internal sealed class TrayIcon : IDisposable
 
     public void Dispose()
     {
+        _timer.Stop();
         if (Added)
         {
             var data = Data(0);
             NativeMethods.Shell_NotifyIconW(NativeMethods.NIM_DELETE, ref data);
             Added = false;
         }
-        if (_icon != 0) NativeMethods.DestroyIcon(_icon);
+        ForgetIcons();
         NativeMethods.DestroyWindow(_hwnd);
         NativeMethods.UnregisterClassW(ClassName, NativeMethods.GetModuleHandleW(null));
     }

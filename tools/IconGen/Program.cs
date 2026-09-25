@@ -16,16 +16,18 @@ switch (mode)
         IcoWriter.Write(Path.Combine(outDir, "app.ico"), appSizes.Select(s => (s, Png(Render(s)))).ToList());
         IcoWriter.Write(Path.Combine(outDir, "tray.ico"), traySizes.Select(s => (s, Png(Render(s)))).ToList());
         IcoWriter.Write(Path.Combine(outDir, "tray-badge.ico"), traySizes.Select(s => (s, Png(Badge.Apply(Render(s))))).ToList());
+        for (var frame = 0; frame < Spinner.Frames; frame++)
+            IcoWriter.Write(Path.Combine(outDir, $"tray-work-{frame}.ico"), traySizes.Select(s => (s, Png(Spinner.Apply(Render(s), frame)))).ToList());
         foreach (var s in new[] { 64, 256 }) File.WriteAllBytes(Path.Combine(outDir, $"app-{s}.png"), Png(Render(s)));
         Console.WriteLine($"Icons written to {outDir}");
         return 0;
     case "verify":
-        foreach (var name in new[] { "app.ico", "tray.ico", "tray-badge.ico" })
+        foreach (var name in IconNames())
             Console.WriteLine($"{name}: {string.Join(",", IcoWriter.Read(Path.Combine(outDir, name)).Select(e => e.Size))}");
         return 0;
     case "dump" when args.Length == 2:
         Directory.CreateDirectory(args[1]);
-        foreach (var name in new[] { "app.ico", "tray.ico", "tray-badge.ico" })
+        foreach (var name in IconNames())
             foreach (var (size, png) in IcoWriter.Read(Path.Combine(outDir, name)))
                 File.WriteAllBytes(Path.Combine(args[1], $"{Path.GetFileNameWithoutExtension(name)}-{size}.png"), png);
         Console.WriteLine($"Dumped to {args[1]}");
@@ -48,6 +50,9 @@ SKBitmap Render(int size)
     canvas.Flush();
     return bitmap;
 }
+
+static IEnumerable<string> IconNames() =>
+    ["app.ico", "tray.ico", "tray-badge.ico", .. Enumerable.Range(0, Spinner.Frames).Select(f => $"tray-work-{f}.ico")];
 
 static byte[] Png(SKBitmap bitmap)
 {

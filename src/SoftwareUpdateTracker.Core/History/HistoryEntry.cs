@@ -17,7 +17,7 @@ public sealed record HistoryEntry
     public required HistoryResult Result { get; set; }
     public string? FromVersion { get; set; }
     public string? ToVersion { get; set; }
-    // Plain words, and the technical code behind Details.
+    // Why it didn't simply succeed, as a name the app words (see InstallDone.Reason), and the technical code behind Details.
     public string? Reason { get; set; }
     public string? Code { get; set; }
 }

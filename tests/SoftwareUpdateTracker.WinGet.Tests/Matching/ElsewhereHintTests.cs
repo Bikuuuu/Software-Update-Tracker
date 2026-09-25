@@ -14,6 +14,8 @@ public class ElsewhereHintTests
     [InlineData(@"ARP\Machine\X64\{EXAMPLE-UPDATE}", "Microsoft Update Health Tools", "Microsoft Corporation", "5.72.0.0", UpdatedBy.WindowsUpdate)]
     [InlineData(@"ARP\Machine\X64\Example Launcher", "Example Launcher", "Example", "Unknown", UpdatedBy.ItSelf)]
     [InlineData(@"ARP\Machine\X86\Example Editor", "Example Editor", "Example", "2.0", UpdatedBy.Unknown)]
+    [InlineData(@"ARP\Machine\X64\{EXAMPLE-TOOLS}", "Windows Example Tools", "Microsoftware Inc", "1.0", UpdatedBy.Unknown)]
+    [InlineData(@"ARP\Machine\X64\{EXAMPLE-RUNTIME}", "Windows Example Runtime", "Microsoft", "1.0", UpdatedBy.WindowsUpdate)]
     public void Hint_NamesWhatUpdatesTheApp(string localId, string name, string publisher, string version, UpdatedBy hint) =>
         Assert.Equal(hint, ElsewhereHint.For(new InstalledPackage(localId, name, publisher, version)));
 }

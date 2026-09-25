@@ -26,7 +26,7 @@ public class WinGetPackageSourceTests
         _queries.Listed.Add(FakeQueries.Matched("Mozilla.Firefox", "Mozilla Firefox", "130.0", latest: "131.0", update: true));
         var read = await Read(Tracked("Mozilla.Firefox"));
         Assert.Equal(
-            new PackageSnapshot("Mozilla.Firefox", "winget", "Mozilla Firefox", "130.0", "131.0", "Example Publisher", "https://example.com/notes"),
+            new PackageSnapshot("Mozilla.Firefox", "winget", "Mozilla Firefox", "130.0", "131.0", "Example Publisher", "https://example.com/notes", @"ARP\Machine\X64\Mozilla.Firefox"),
             Assert.Single(read.Installed));
         Assert.Empty(read.NotInCatalog);
         Assert.Equal(["list"], _queries.Asked);

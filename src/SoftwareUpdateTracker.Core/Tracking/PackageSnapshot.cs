@@ -8,4 +8,6 @@ public sealed record PackageSnapshot(
     string InstalledVersion,
     string? AvailableVersion,
     string Publisher = "",
-    string? ReleaseNotesUrl = null);
+    string? ReleaseNotesUrl = null,
+    // winget's id for the uninstall entry or MSIX package; the app's icon comes from it.
+    string LocalId = "");
