@@ -5,11 +5,11 @@ using SoftwareUpdateTracker.Core;
 using SoftwareUpdateTracker.Core.Checking;
 using SoftwareUpdateTracker.Core.History;
 using SoftwareUpdateTracker.Core.Installing;
-using SoftwareUpdateTracker.Core.Logging;
 using SoftwareUpdateTracker.Core.Scheduling;
 using SoftwareUpdateTracker.Core.Storage;
 using SoftwareUpdateTracker.Core.Tracking;
 using SoftwareUpdateTracker.Core.Versions;
+using SoftwareUpdateTracker.Presentation.History;
 using SoftwareUpdateTracker.Presentation.Settings;
 using SoftwareUpdateTracker.Presentation.Shell;
 using SoftwareUpdateTracker.Presentation.Text;
@@ -17,7 +17,7 @@ using SoftwareUpdateTracker.Presentation.Text;
 namespace SoftwareUpdateTracker.Presentation.Updates;
 
 // The Updates page. Runs on the UI thread; UpdatesWiring hands it the Core's events there.
-public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
+public sealed partial class UpdatesViewModel : ObservableObject, IDisposable, IHistoryRows
 {
     public static readonly TimeSpan UpdatedShownFor = TimeSpan.FromSeconds(4);
     public static readonly TimeSpan UndoShownFor = TimeSpan.FromSeconds(5);
@@ -29,8 +29,8 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     private readonly SettingsStore _settings;
     private readonly SettingsWriter _writer;
     private readonly HistoryStore _history;
+    private readonly HistoryWriter _historyWriter;
     private readonly TimeProvider _time;
-    private readonly FileLog _log;
     private readonly Action<Action> _post;
     private readonly Action<string> _openLink;
     private readonly Dictionary<string, UpdateRow> _rows = new(StringComparer.OrdinalIgnoreCase);
@@ -43,15 +43,15 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     private bool _disposed;
 
     public UpdatesViewModel(CheckScheduler scheduler, IInstaller installer, SettingsStore settings, SettingsWriter writer, HistoryStore history,
-        TimeProvider time, FileLog log, Action<Action> post, Action<string> openLink)
+        HistoryWriter historyWriter, TimeProvider time, Action<Action> post, Action<string> openLink)
     {
         _scheduler = scheduler;
         _installer = installer;
         _settings = settings;
         _writer = writer;
         _history = history;
+        _historyWriter = historyWriter;
         _time = time;
-        _log = log;
         _post = post;
         _openLink = openLink;
         Refresh();
@@ -113,6 +113,16 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial TrayState Tray { get; private set; } = new(TrayIconKind.Idle, "");
 
+    // For diagnostics: when the last check ran and what it ran into, and when the last good one ran.
+    public DateTimeOffset? LastCheckAt { get; private set; }
+
+    public CheckProblem LastProblem { get; private set; }
+
+    public DateTimeOffset? LastGoodCheckAt => _checkedAt;
+
+    // Raised on the UI thread each time the rows are shown anew.
+    public event EventHandler? RowsChanged;
+
     public void Dispose()
     {
         _disposed = true;
@@ -153,6 +163,8 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     public void CheckFinished(CheckCompleted check)
     {
         _checking = false;
+        LastCheckAt = check.At;
+        LastProblem = check.Problem;
         Problem = Notice.ForProblem(check.Problem, check.Detail);
         if (check.Problem == CheckProblem.None) _checkedAt = check.At;
         foreach (var app in check.Apps)
@@ -179,20 +191,29 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
 
     public void InstallChanged(InstallItem item)
     {
-        if (!_rows.TryGetValue(Key(item.Request.Package), out var row) || row.IsRemoved) return;
+        // A removed row still follows its install, so Undo shows where it is.
+        if (!_rows.TryGetValue(Key(item.Request.Package), out var row)) return;
         row.Install = item;
         if (item.Done is { } done)
         {
             if (done.After is { } after) row.Check = after;
             if (done.Outcome.Result == UpgradeResult.Cancelled) row.Install = null;
-            else if (done.Outcome.Result == UpgradeResult.Updated && !done.Phantom) After(row, UpdatedShownFor, () => row.Install = null);
+            else if (done.Outcome.Result == UpgradeResult.Updated && !done.Phantom && !row.IsRemoved) After(row, UpdatedShownFor, () => row.Install = null);
         }
         Refresh();
     }
 
     // Leaving Choose apps: drops rows of apps no longer tracked, and checks apps that were added.
+    // Ticks still being saved land first, so the check sees them.
     public void TrackedAppsChanged(bool added)
     {
+        if (_writer.Idle.IsCompleted) ApplyTrackedApps(added);
+        else _writer.Update(file => file, _ => ApplyTrackedApps(added));
+    }
+
+    private void ApplyTrackedApps(bool added)
+    {
+        if (_disposed) return;
         foreach (var key in _rows.Keys.ToList())
             if (!_rows[key].IsRemoved && !IsTracked(_rows[key].Check.App)) _rows.Remove(key);
         if (added)
@@ -222,6 +243,22 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Dismiss(Notice notice) => Notices.Remove(notice);
 
+    public string LocalIdOf(PackageKey package) => _rows.TryGetValue(Key(package), out var row) ? row.LocalId : "";
+
+    // History's Retry offers only what the row itself offers now: Update or Retry, of this very version.
+    public bool CanRetry(PackageKey package, string version) => _rows.TryGetValue(Key(package), out var row) && CanRetry(row, version);
+
+    public bool Retry(PackageKey package, string version)
+    {
+        if (!_rows.TryGetValue(Key(package), out var row) || !CanRetry(row, version)) return false;
+        Update(row);
+        return true;
+    }
+
+    private static bool CanRetry(UpdateRow row, string version) =>
+        !row.IsRemoved && row.View.Action is RowAction.Update or RowAction.Retry && row.Check.Package is not null
+        && row.Check.App.Offer is { } offer && PackageVersion.Same(offer.Version, version);
+
     internal void Primary(UpdateRow row)
     {
         if (row.View.Action == RowAction.StopTracking) StopTracking(row);
@@ -238,7 +275,6 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
         var version = offer.Version;
         // A failure of the skipped version is no longer anything to retry or update.
         if (row.Install?.Done is not null) row.Install = null;
-        Change(row, app => app with { SkippedVersion = version }, check => check with { App = check.App with { SkippedVersion = version }, Status = AppStatus.Skipped });
         var entry = new HistoryEntry
         {
             Time = _time.GetUtcNow(),
@@ -249,11 +285,17 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
             FromVersion = row.Check.Package?.InstalledVersion,
             ToVersion = version,
         };
-        _ = Task.Run(() => Record(entry));
+        // History gets the skip once it's saved, unless an Undo or another skip came first.
+        var skip = ++row.Skips;
+        Change(row, app => app with { SkippedVersion = version }, check => check with { App = check.App with { SkippedVersion = version }, Status = AppStatus.Skipped }, () =>
+        {
+            if (row.Skips == skip) _historyWriter.Add(entry);
+        });
     }
 
     internal void UndoSkip(UpdateRow row)
     {
+        row.Skips++;
         var status = row.Check.App.Offer is { Phantom: true } ? AppStatus.Phantom : row.Check.App.Offer is null ? AppStatus.UpToDate : AppStatus.Available;
         Change(row, app => app with { SkippedVersion = null }, check => check with { App = check.App with { SkippedVersion = null }, Status = status });
     }
@@ -278,7 +320,7 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
         _writer.Update(file => file with { Apps = file.Apps.Where(a => !a.Matches(row.Key.Id, row.Key.Source)).ToList() }, saved =>
         {
             if (saved) return;
-            row.IsRemoved = false;
+            PutBack(row);
             Show(Notice.SaveFailed);
             Refresh();
         });
@@ -293,14 +335,23 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     internal void UndoRemove(UpdateRow row)
     {
         if (!row.IsRemoved || row.RemovedApp is not { } app) return;
-        row.Timer?.Dispose();
-        row.IsRemoved = false;
+        PutBack(row);
         _writer.Update(file => file.Apps.Any(a => a.Matches(app.Id, app.Source)) ? file : file with { Apps = [.. file.Apps, app] }, saved =>
         {
             if (saved) return;
             Show(Notice.SaveFailed);
         });
         Refresh();
+    }
+
+    // The row may already have left the list after its 5 seconds. An update that finished meanwhile shows for its moment.
+    private void PutBack(UpdateRow row)
+    {
+        row.Timer?.Dispose();
+        row.Timer = null;
+        row.IsRemoved = false;
+        _rows.TryAdd(Key(row.Key), row);
+        if (row.Install?.Done is { Phantom: false, Outcome.Result: UpgradeResult.Updated }) After(row, UpdatedShownFor, () => row.Install = null);
     }
 
     private static string Key(TrackedApp app) => Key(new PackageKey(app.Id, app.Source));
@@ -324,30 +375,22 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     }
 
     // Shows the change at once and saves it off the UI thread; a change that can't be saved is undone.
-    private void Change(UpdateRow row, Func<TrackedApp, TrackedApp> app, Func<AppCheck, AppCheck> check)
+    private void Change(UpdateRow row, Func<TrackedApp, TrackedApp> app, Func<AppCheck, AppCheck> check, Action? saved = null)
     {
         var before = row.Check;
         row.Check = check(row.Check);
-        _writer.Update(file => file with { Apps = file.Apps.Select(a => a.Matches(row.Key.Id, row.Key.Source) ? app(a) : a).ToList() }, saved =>
+        _writer.Update(file => file with { Apps = file.Apps.Select(a => a.Matches(row.Key.Id, row.Key.Source) ? app(a) : a).ToList() }, ok =>
         {
-            if (saved) return;
+            if (ok)
+            {
+                saved?.Invoke();
+                return;
+            }
             row.Check = before;
             Show(Notice.SaveFailed);
             Refresh();
         });
         Refresh();
-    }
-
-    private void Record(HistoryEntry entry)
-    {
-        try
-        {
-            _history.Add(entry);
-        }
-        catch (IOException e)
-        {
-            _log.Warn($"History of {entry.Id} not saved: {e.Message}");
-        }
     }
 
     // Runs once on the UI thread after a delay, unless the row starts another one first.
@@ -376,6 +419,9 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
         if (Notices.FirstOrDefault(n => n.Kind == kind) is { } notice) Notices.Remove(notice);
     }
 
+    // History's file changed: its notice may be gone.
+    public void FilesChanged() => RefreshFileNotices();
+
     private void RefreshFileNotices()
     {
         if (_settings.Unreadable) Show(Notice.SettingsUnreadable);
@@ -403,7 +449,9 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
         HasUpdates = Updates.Count > 0;
         HasUpToDate = UpToDate.Count > 0;
         UpToDateText = Words.UpToDate(UpToDate.Count);
-        UpToDatePreview = [.. UpToDate.Take(4)];
+        // Kept while its rows stay the same, so the icons don't reload during downloads.
+        var preview = UpToDate.Take(4).ToList();
+        if (!preview.SequenceEqual(UpToDatePreview)) UpToDatePreview = preview;
         if (!_expandedByUser) IsUpToDateExpanded = Updates.Count == 0;
         CanUpdateAll = forAll > 0;
         UpdateAllText = Words.Format(Strings.UpdateAll, forAll);
@@ -413,9 +461,10 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
         NextCheck = _checking ? Strings.Checking
             : _scheduler.NextCheck is { } next ? Words.Format(Strings.NextCheckIn, Words.Until(next - now))
             : Strings.NextCheckOnHold;
-        var installing = rows.FirstOrDefault(r => r.View.State is RowState.Downloading or RowState.Installing);
-        IsWorking = _checking || rows.Any(r => r.View.IsActive);
+        var installing = rows.FirstOrDefault(r => !r.IsRemoved && r.View.State is RowState.Downloading or RowState.Installing);
+        IsWorking = _checking || rows.Any(r => !r.IsRemoved && r.View.IsActive);
         int? percent = installing?.View is { Indeterminate: false } view ? (int)view.Percent : null;
         Tray = TrayState.Of(IsWorking, _checking, installing?.Name, percent, Problem, pending, IsEmpty, _checkedAt is not null);
+        RowsChanged?.Invoke(this, EventArgs.Empty);
     }
 }

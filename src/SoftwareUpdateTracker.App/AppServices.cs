@@ -9,6 +9,7 @@ using SoftwareUpdateTracker.Core.Storage;
 using SoftwareUpdateTracker.Presentation;
 using SoftwareUpdateTracker.Presentation.Choose;
 using SoftwareUpdateTracker.Presentation.Demo;
+using SoftwareUpdateTracker.Presentation.History;
 using SoftwareUpdateTracker.Presentation.Settings;
 using SoftwareUpdateTracker.Presentation.Updates;
 using SoftwareUpdateTracker.WinGet;
@@ -22,6 +23,7 @@ public sealed class AppServices : IDisposable
     private readonly HttpClient _http = new();
     private readonly UiInbox _inbox;
     private readonly SettingsWriter _writer;
+    private readonly HistoryWriter _historyWriter;
 
     public AppServices(Action<Action> post, Action<string> openLink, bool demo)
     {
@@ -62,7 +64,8 @@ public sealed class AppServices : IDisposable
         Runner = new CheckRunner(Scheduler, Settings, source, dates, time, Log);
         Queue = new InstallQueue(upgrader, source, Settings, History, time, Log, timings);
         _writer = new SettingsWriter(Settings, Log, post);
-        Updates = new UpdatesViewModel(Scheduler, Queue, Settings, _writer, History, time, Log, post, openLink);
+        _historyWriter = new HistoryWriter(History, Log, post);
+        Updates = new UpdatesViewModel(Scheduler, Queue, Settings, _writer, History, _historyWriter, time, post, openLink);
         Choose = new ChooseAppsViewModel(inventory, Settings, _writer, Log, post);
         _inbox = new UiInbox(post, Log);
         Scheduler.CheckDue += _inbox.For<CheckTicket>(_ => Updates.CheckStarted());
@@ -95,7 +98,7 @@ public sealed class AppServices : IDisposable
         Updates.Dispose();
         _http.Dispose();
         // Changes made just before Quit still land; in the demo, a late save would bring the folder back.
-        Task.WhenAll(_writer.Idle, Queue.Stopped).Wait(TimeSpan.FromSeconds(2));
+        Task.WhenAll(_writer.Idle, _historyWriter.Idle, Queue.Stopped).Wait(TimeSpan.FromSeconds(2));
         if (!Demo) return;
         Log.Close();
         DemoFolder.Delete(Paths.Root);

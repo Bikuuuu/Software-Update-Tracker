@@ -45,6 +45,9 @@ public sealed partial class UpdateRow : ObservableObject
 
     internal ITimer? Timer { get; set; }
 
+    // Counts skips and undos, so a save that lands late knows whether its skip still stands.
+    internal int Skips { get; set; }
+
     internal void Show(DateTimeOffset now)
     {
         View = RowView.Of(Check, Install, now);

@@ -5,6 +5,7 @@ using SoftwareUpdateTracker.Core.Logging;
 using SoftwareUpdateTracker.Core.Scheduling;
 using SoftwareUpdateTracker.Core.Storage;
 using SoftwareUpdateTracker.Presentation.Demo;
+using SoftwareUpdateTracker.Presentation.History;
 using SoftwareUpdateTracker.Presentation.Settings;
 using SoftwareUpdateTracker.Presentation.Updates;
 using Xunit;
@@ -39,7 +40,7 @@ public sealed class DemoWinGetTests : IDisposable
         _runner = new CheckRunner(_scheduler, _settings, _demo, _demo, _time, log);
         _queue = new InstallQueue(_demo, _demo, _settings, history, _time, log, DemoWinGet.Timings);
         _inbox = new UiInbox(_ui.Post, log);
-        _vm = new UpdatesViewModel(_scheduler, _queue, _settings, new SettingsWriter(_settings, log, _ui.Post), history, _time, log, _ui.Post, _ => { });
+        _vm = new UpdatesViewModel(_scheduler, _queue, _settings, new SettingsWriter(_settings, log, _ui.Post), history, new HistoryWriter(history, log, _ui.Post), _time, _ui.Post, _ => { });
         _scheduler.CheckDue += _inbox.For<CheckTicket>(_ => _vm.CheckStarted());
         _runner.Completed += _inbox.For<CheckCompleted>(_vm.CheckFinished);
         _queue.Changed += _inbox.For<InstallItem>(_vm.InstallChanged);

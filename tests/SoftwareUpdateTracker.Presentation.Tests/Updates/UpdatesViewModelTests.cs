@@ -6,6 +6,7 @@ using SoftwareUpdateTracker.Core.Logging;
 using SoftwareUpdateTracker.Core.Scheduling;
 using SoftwareUpdateTracker.Core.Storage;
 using SoftwareUpdateTracker.Core.Tracking;
+using SoftwareUpdateTracker.Presentation.History;
 using SoftwareUpdateTracker.Presentation.Settings;
 using SoftwareUpdateTracker.Presentation.Shell;
 using SoftwareUpdateTracker.Presentation.Updates;
@@ -14,7 +15,7 @@ using static SoftwareUpdateTracker.Presentation.Tests.Fixtures;
 
 namespace SoftwareUpdateTracker.Presentation.Tests.Updates;
 
-public sealed class UpdatesViewModelTests : IDisposable
+public sealed class UpdatesViewModelTests : IAsyncDisposable
 {
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(10);
 
@@ -27,6 +28,7 @@ public sealed class UpdatesViewModelTests : IDisposable
     private readonly SettingsStore _settings;
     private readonly HistoryStore _history;
     private readonly SettingsWriter _writer;
+    private readonly HistoryWriter _historyWriter;
     private readonly UpdatesViewModel _vm;
     private int _checksDue;
 
@@ -39,11 +41,14 @@ public sealed class UpdatesViewModelTests : IDisposable
         _history = new HistoryStore(_folder.PathOf("history.json"), _time);
         var log = new FileLog(_folder.PathOf("app.log"), _time);
         _writer = new SettingsWriter(_settings, log, _ui.Post);
-        _vm = new UpdatesViewModel(_scheduler, _installer, _settings, _writer, _history, _time, log, _ui.Post, _opened.Add);
+        _historyWriter = new HistoryWriter(_history, log, _ui.Post);
+        _vm = new UpdatesViewModel(_scheduler, _installer, _settings, _writer, _history, _historyWriter, _time, _ui.Post, _opened.Add);
     }
 
-    public void Dispose()
+    // Saves a test left queued land before the folder goes.
+    public async ValueTask DisposeAsync()
     {
+        await Task.WhenAll(_writer.Idle, _historyWriter.Idle).WaitAsync(Wait);
         _vm.Dispose();
         _scheduler.Dispose();
         _folder.Dispose();
@@ -282,6 +287,91 @@ public sealed class UpdatesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Undo_WhileTheRowFadesOut_PutsItBack()
+    {
+        Show(Check(AppStatus.Available));
+        var row = Row("Example Editor");
+        row.StopTrackingCommand.Execute(null);
+        await Saved();
+        Pass(UpdatesViewModel.UndoShownFor);
+        Assert.DoesNotContain(row, _vm.Updates);
+        row.UndoCommand.Execute(null);
+        await Saved();
+        Assert.Contains(row, _vm.Updates);
+        Assert.False(row.IsRemoved);
+        Assert.Single(_settings.Current.Apps, a => a.Id == "Example.Editor");
+    }
+
+    [Fact]
+    public async Task StopTrackingRefusedAfterTheRowLeft_PutsTheRowBack()
+    {
+        Show(Check(AppStatus.Available));
+        var row = Row("Example Editor");
+        using var gate = new ManualResetEventSlim();
+        try
+        {
+            _writer.Update(file =>
+            {
+                gate.Wait(Wait);
+                return file;
+            });
+            row.StopTrackingCommand.Execute(null);
+            Pass(UpdatesViewModel.UndoShownFor);
+            Assert.DoesNotContain(row, _vm.Updates);
+            File.Delete(_folder.PathOf("settings.json"));
+            Directory.CreateDirectory(_folder.PathOf("settings.json"));
+        }
+        finally
+        {
+            gate.Set();
+        }
+        await Saved();
+        Assert.Contains(row, _vm.Updates);
+        Assert.False(row.IsRemoved);
+        Assert.Equal(NoticeKind.SaveFailed, Assert.Single(_vm.Notices).Kind);
+    }
+
+    [Fact]
+    public void RemovedRow_StillFollowsItsInstall_AndIsntWork()
+    {
+        Show(Check(AppStatus.Available));
+        _vm.InstallChanged(Item(InstallStage.Waiting));
+        var row = Row("Example Editor");
+        row.StopTrackingCommand.Execute(null);
+        Assert.False(_vm.IsWorking);
+        _vm.InstallChanged(Done(UpgradeResult.Cancelled));
+        row.UndoCommand.Execute(null);
+        Assert.Equal(RowState.Available, row.View.State);
+        Assert.False(_vm.IsWorking);
+    }
+
+    [Fact]
+    public void RemovedRowThatFinishesUpdating_StillLeavesAfterItsFiveSeconds()
+    {
+        Show(Check(AppStatus.Available));
+        _vm.InstallChanged(Item(InstallStage.Installing));
+        var row = Row("Example Editor");
+        row.StopTrackingCommand.Execute(null);
+        _vm.InstallChanged(Done(UpgradeResult.Updated, after: Check(AppStatus.UpToDate, installed: "2.5.0", offer: null)));
+        Pass(UpdatesViewModel.UndoShownFor);
+        Assert.DoesNotContain(row, _vm.Updates.Concat(_vm.UpToDate));
+    }
+
+    [Fact]
+    public void UndoOfARowThatUpdatedMeanwhile_ShowsUpdated_ThenJoinsUpToDate()
+    {
+        Show(Check(AppStatus.Available));
+        _vm.InstallChanged(Item(InstallStage.Installing));
+        var row = Row("Example Editor");
+        row.StopTrackingCommand.Execute(null);
+        _vm.InstallChanged(Done(UpgradeResult.Updated, after: Check(AppStatus.UpToDate, installed: "2.5.0", offer: null)));
+        row.UndoCommand.Execute(null);
+        Assert.Equal(RowState.Updated, row.View.State);
+        Pass(UpdatesViewModel.UpdatedShownFor);
+        Assert.Contains(row, _vm.UpToDate);
+    }
+
+    [Fact]
     public void StopTracking_CancelsAWaitingInstall()
     {
         Show(Check(AppStatus.Available));
@@ -311,13 +401,49 @@ public sealed class UpdatesViewModelTests : IDisposable
         Assert.Contains(Row("Example Editor"), _vm.UpToDate);
         await Saved();
         Assert.Equal("2.5.0", _settings.Current.Apps.Single(a => a.Id == "Example.Editor").SkippedVersion);
-        await Until(() => _history.Entries.Count == 1);
-        Assert.Equal((HistoryResult.Skipped, "2.5.0"), (_history.Entries[0].Result, _history.Entries[0].ToVersion));
+        await _historyWriter.Idle.WaitAsync(Wait, Ct);
+        Assert.Equal((HistoryResult.Skipped, "2.4.1", "2.5.0"), (_history.Entries[0].Result, _history.Entries[0].FromVersion, _history.Entries[0].ToVersion));
 
         Row("Example Editor").UndoSkipCommand.Execute(null);
         await Saved();
         Assert.Equal(RowState.Available, Row("Example Editor").View.State);
         Assert.Null(_settings.Current.Apps.Single(a => a.Id == "Example.Editor").SkippedVersion);
+    }
+
+    [Fact]
+    public async Task SkipThatCantBeSaved_WritesNoHistory()
+    {
+        Show(Check(AppStatus.Available));
+        File.Delete(_folder.PathOf("settings.json"));
+        Directory.CreateDirectory(_folder.PathOf("settings.json"));
+        Row("Example Editor").SkipCommand.Execute(null);
+        await Saved();
+        await _historyWriter.Idle.WaitAsync(Wait, Ct);
+        Assert.Equal(RowState.Available, Row("Example Editor").View.State);
+        Assert.Empty(_history.Entries);
+    }
+
+    [Fact]
+    public async Task SkipUndoneBeforeItWasSaved_WritesNoHistory()
+    {
+        Show(Check(AppStatus.Available));
+        Row("Example Editor").SkipCommand.Execute(null);
+        Row("Example Editor").UndoSkipCommand.Execute(null);
+        await Saved();
+        await _historyWriter.Idle.WaitAsync(Wait, Ct);
+        Assert.Empty(_history.Entries);
+    }
+
+    [Fact]
+    public async Task SkipUndoAndSkipAgain_BeforeTheSaves_WriteOneEntry()
+    {
+        Show(Check(AppStatus.Available));
+        Row("Example Editor").SkipCommand.Execute(null);
+        Row("Example Editor").UndoSkipCommand.Execute(null);
+        Row("Example Editor").SkipCommand.Execute(null);
+        await Saved();
+        await _historyWriter.Idle.WaitAsync(Wait, Ct);
+        Assert.Single(_history.Entries);
     }
 
     [Fact]
@@ -401,12 +527,53 @@ public sealed class UpdatesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task TicksStillSaving_LandBeforeRowsLeaveAndTheCheckStarts()
+    {
+        Show(Check(AppStatus.Available), Check(AppStatus.UpToDate, "Example.Viewer", offer: null));
+        var clockTracked = false;
+        _scheduler.CheckDue += (_, _) => clockTracked = _settings.Current.Apps.Any(a => a.Id == "Example.Clock");
+        using var gate = new ManualResetEventSlim();
+        try
+        {
+            _writer.Update(file =>
+            {
+                gate.Wait(Wait);
+                return file with { Apps = [.. file.Apps.Where(a => a.Id != "Example.Viewer"), App("Example.Clock")] };
+            });
+            _vm.TrackedAppsChanged(added: true);
+            _ui.Pump();
+            Assert.Single(_vm.UpToDate);
+            Assert.Equal(0, _checksDue);
+        }
+        finally
+        {
+            gate.Set();
+        }
+        await Saved();
+        Assert.Empty(_vm.UpToDate);
+        Assert.Equal(1, _checksDue);
+        Assert.True(clockTracked);
+    }
+
+    [Fact]
     public void UntrackedApps_LeaveThePage()
     {
         Show(Check(AppStatus.Available), Check(AppStatus.UpToDate, "Example.Viewer", offer: null));
         _settings.Update(f => f with { Apps = f.Apps.Where(a => a.Id != "Example.Viewer").ToList() });
         _vm.TrackedAppsChanged(added: false);
         Assert.Empty(_vm.UpToDate);
+    }
+
+    [Fact]
+    public void UpToDatePreview_IsKept_WhileItsRowsStayTheSame()
+    {
+        Show(Check(AppStatus.Available), Check(AppStatus.UpToDate, "Example.Viewer", offer: null));
+        var preview = _vm.UpToDatePreview;
+        _vm.InstallChanged(Item(InstallStage.Downloading, progress: Downloading(10 * MB, 100 * MB)));
+        _vm.InstallChanged(Item(InstallStage.Downloading, progress: Downloading(20 * MB, 100 * MB)));
+        Assert.Same(preview, _vm.UpToDatePreview);
+        Show(Check(AppStatus.UpToDate, "Example.Paint", offer: null));
+        Assert.Equal(["Example Paint", "Example Viewer"], _vm.UpToDatePreview.Select(r => r.Name));
     }
 
     [Fact]
@@ -429,11 +596,85 @@ public sealed class UpdatesViewModelTests : IDisposable
         Directory.CreateDirectory(_folder.PathOf("locked.json"));
         var history = new HistoryStore(_folder.PathOf("locked.json"), _time);
         history.Load();
-        using var vm = new UpdatesViewModel(_scheduler, _installer, _settings, _writer, history, _time, new FileLog(_folder.PathOf("app.log"), _time), _ui.Post, _opened.Add);
+        using var vm = new UpdatesViewModel(_scheduler, _installer, _settings, _writer, history, _historyWriter, _time, _ui.Post, _opened.Add);
         vm.ShowStartupNotices(settingsRecovered: true, historyRecovered: false);
         Assert.Equal([NoticeKind.SettingsRecovered, NoticeKind.HistoryUnreadable], vm.Notices.Select(n => n.Kind));
         vm.DismissCommand.Execute(vm.Notices[0]);
         Assert.Equal([NoticeKind.HistoryUnreadable], vm.Notices.Select(n => n.Kind));
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData(UpgradeResult.Failed, true)]
+    [InlineData(UpgradeResult.AppInUse, true)]
+    [InlineData(UpgradeResult.NeedsAdmin, false)]
+    [InlineData(UpgradeResult.NotInstalled, false)]
+    [InlineData(UpgradeResult.Updated, false)]
+    public void History_MayRetryOnlyWhatTheRowOffers(UpgradeResult? done, bool retry)
+    {
+        Show(Check(AppStatus.Available));
+        if (done is { } result) _vm.InstallChanged(Done(result, failure: result == UpgradeResult.Failed ? UpgradeFailure.DiskFull : UpgradeFailure.None));
+        var editor = new PackageKey("Example.Editor", "winget");
+        Assert.Equal(retry, _vm.CanRetry(editor, "2.5.0"));
+        Assert.Equal(retry, _vm.Retry(editor, "2.5.0"));
+        Assert.Equal(retry ? 1 : 0, _installer.Enqueued.Count);
+    }
+
+    [Fact]
+    public void History_MayNotRetrySkippedPhantomActiveRemovedOrOtherVersions()
+    {
+        _settings.Update(f => f with { Apps = [.. f.Apps, App("Example.Clock"), App("Example.Sync", phantom: true)] });
+        Show(
+            Check(AppStatus.Available),
+            Check(AppStatus.Available, "Example.Paint"),
+            Check(AppStatus.Available, "Example.Viewer"),
+            Check(AppStatus.Skipped, "Example.Clock", skipped: "2.5.0"),
+            Check(AppStatus.Phantom, "Example.Sync"));
+        _vm.InstallChanged(Item(InstallStage.Downloading, "Example.Paint"));
+        Row("Example Viewer").StopTrackingCommand.Execute(null);
+        Assert.False(_vm.CanRetry(new PackageKey("Example.Viewer", "winget"), "2.5.0"));
+        Assert.False(_vm.CanRetry(new PackageKey("Example.Editor", "winget"), "2.4.9"));
+        Assert.False(_vm.CanRetry(new PackageKey("Example.Paint", "winget"), "2.5.0"));
+        Assert.False(_vm.CanRetry(new PackageKey("Example.Clock", "winget"), "2.5.0"));
+        Assert.False(_vm.CanRetry(new PackageKey("Example.Sync", "winget"), "2.5.0"));
+        Assert.False(_vm.CanRetry(new PackageKey("Example.Missing", "winget"), "2.5.0"));
+        Assert.True(_vm.CanRetry(new PackageKey("example.editor", "WINGET"), "2.5.0"));
+    }
+
+    [Fact]
+    public void History_GetsIconsAndHearsOfRowChanges()
+    {
+        var changes = 0;
+        _vm.RowsChanged += (_, _) => changes++;
+        Show(Check(AppStatus.Available));
+        Assert.True(changes > 0);
+        Assert.Equal(@"ARP\Machine\X64\Example Editor", _vm.LocalIdOf(new PackageKey("Example.Editor", "winget")));
+        Assert.Equal("", _vm.LocalIdOf(new PackageKey("Example.Missing", "winget")));
+    }
+
+    [Fact]
+    public void LastChecks_AreKeptForDiagnostics()
+    {
+        Assert.Equal(((DateTimeOffset?)null, CheckProblem.None, (DateTimeOffset?)null), (_vm.LastCheckAt, _vm.LastProblem, _vm.LastGoodCheckAt));
+        Show(Check(AppStatus.Available));
+        _time.Advance(TimeSpan.FromHours(1));
+        _vm.CheckFinished(Failed(CheckProblem.WinGetUnreachable));
+        Assert.Equal(((DateTimeOffset?)Now + TimeSpan.FromHours(1), CheckProblem.WinGetUnreachable, (DateTimeOffset?)Now), (_vm.LastCheckAt, _vm.LastProblem, _vm.LastGoodCheckAt));
+    }
+
+    [Fact]
+    public void HistoryReadAgain_ClearsItsNotice()
+    {
+        var path = _folder.PathOf("locked.json");
+        File.WriteAllText(path, "{}");
+        var history = new HistoryStore(path, _time);
+        using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None)) history.Load();
+        using var vm = new UpdatesViewModel(_scheduler, _installer, _settings, _writer, history, _historyWriter, _time, _ui.Post, _opened.Add);
+        vm.ShowStartupNotices(settingsRecovered: false, historyRecovered: false);
+        Assert.Equal([NoticeKind.HistoryUnreadable], vm.Notices.Select(n => n.Kind));
+        history.Retry();
+        vm.FilesChanged();
+        Assert.Empty(vm.Notices);
     }
 
     [Fact]
