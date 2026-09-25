@@ -23,5 +23,10 @@ public sealed class WinGetUpgrader : IPackageUpgrader
         {
             return new UpgradeOutcome(UpgradeResult.Failed, UpgradeFailure.WinGetUnavailable, e.Code);
         }
+        // IPackageUpgrader never throws.
+        catch (Exception e)
+        {
+            return new UpgradeOutcome(UpgradeResult.Failed, UpgradeFailure.WinGetUnavailable, $"0x{e.HResult:X8}");
+        }
     }
 }

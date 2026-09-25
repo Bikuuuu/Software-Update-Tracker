@@ -55,24 +55,32 @@ public sealed class WinGetSession : IWinGetQueries
         if (versionId is null) return new UpgradeOutcome(UpgradeResult.NoUpdate);
         ct.ThrowIfCancellationRequested();
         var stage = (int)UpgradeStage.Queued;
-        var operation = _manager.UpgradePackageAsync(package, new InstallOptions
-        {
-            PackageVersionId = versionId,
-            PackageInstallMode = PackageInstallMode.Silent,
-            AcceptPackageAgreements = true,
-        });
-        operation.Progress = (_, raw) =>
-        {
-            var mapped = ProgressMap.From(raw);
-            Volatile.Write(ref stage, (int)mapped.Stage);
-            progress?.Report(mapped);
-        };
-        using var registration = ct.Register(() =>
-        {
-            if ((UpgradeStage)Volatile.Read(ref stage) is UpgradeStage.Queued or UpgradeStage.Downloading) operation.Cancel();
-        });
         try
         {
+            var operation = _manager.UpgradePackageAsync(package, new InstallOptions
+            {
+                PackageVersionId = versionId,
+                PackageInstallMode = PackageInstallMode.Silent,
+                AcceptPackageAgreements = true,
+            });
+            operation.Progress = (_, raw) =>
+            {
+                var mapped = ProgressMap.From(raw);
+                Volatile.Write(ref stage, (int)mapped.Stage);
+                progress?.Report(mapped);
+            };
+            // Cancel on the thread pool: the canceller may be a UI thread, and the call crosses into winget's process.
+            using var registration = ct.Register(() => _ = Task.Run(() =>
+            {
+                if ((UpgradeStage)Volatile.Read(ref stage) is not (UpgradeStage.Queued or UpgradeStage.Downloading)) return;
+                try
+                {
+                    operation.Cancel();
+                }
+                catch (Exception e) when (e is COMException or InvalidOperationException)
+                {
+                }
+            }));
             var result = await operation;
             return ErrorMap.ForUpgrade(result.Status, result.ExtendedErrorCode?.HResult ?? 0, result.InstallerErrorCode);
         }
@@ -80,7 +88,7 @@ public sealed class WinGetSession : IWinGetQueries
         {
             return new UpgradeOutcome(UpgradeResult.Cancelled);
         }
-        catch (Exception e) when (e is COMException or InvalidCastException)
+        catch (Exception e)
         {
             return new UpgradeOutcome(UpgradeResult.Failed, UpgradeFailure.WinGetUnavailable, $"0x{e.HResult:X8}");
         }
