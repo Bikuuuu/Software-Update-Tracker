@@ -10,7 +10,7 @@ using Xunit;
 
 namespace SoftwareUpdateTracker.Core.Tests.Installing;
 
-public sealed class InstallQueueTests : IDisposable
+public sealed class InstallQueueTests : IAsyncDisposable
 {
     private const ulong MB = 1024 * 1024;
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(10);
@@ -24,10 +24,12 @@ public sealed class InstallQueueTests : IDisposable
     private readonly Channel<InstallItem> _items = Channel.CreateUnbounded<InstallItem>();
     private readonly SettingsStore _settings;
     private readonly HistoryStore _history;
+    private readonly FileLog _log;
     private readonly InstallQueue _queue;
 
     public InstallQueueTests()
     {
+        _log = new FileLog(_folder.PathOf("app.log"), _time);
         _settings = new SettingsStore(_folder.PathOf("settings.json"));
         _settings.Update(f => f with { Apps = [Firefox, Vlc] });
         _history = new HistoryStore(_folder.PathOf("history.json"), _time);
@@ -35,9 +37,12 @@ public sealed class InstallQueueTests : IDisposable
         _queue = Queue(_history);
     }
 
-    public void Dispose()
+    // A download the test left running is cancelled; its last log line must not bring the folder back.
+    public async ValueTask DisposeAsync()
     {
         _queue.Dispose();
+        await _queue.Stopped.WaitAsync(Wait);
+        _log.Close();
         _folder.Dispose();
     }
 
@@ -45,7 +50,7 @@ public sealed class InstallQueueTests : IDisposable
 
     private InstallQueue Queue(HistoryStore history)
     {
-        var queue = new InstallQueue(_upgrader, _source, _settings, history, _time, new FileLog(_folder.PathOf("app.log"), _time));
+        var queue = new InstallQueue(_upgrader, _source, _settings, history, _time, _log);
         queue.Changed += (_, item) => _items.Writer.TryWrite(item);
         return queue;
     }
@@ -127,6 +132,83 @@ public sealed class InstallQueueTests : IDisposable
         Assert.Equal(10 * MB, downloading.BytesPerSecond, 3);
         call.Install(0.5);
         Assert.Equal(InstallStage.Installing, (await Next(i => i.Stage != InstallStage.Downloading)).Stage);
+    }
+
+    [Fact]
+    public async Task SpeedFallsToZero_WhenBytesStopComing()
+    {
+        var call = await Start(Firefox);
+        call.Download(0);
+        _time.Advance(TimeSpan.FromSeconds(1));
+        call.Download(10 * MB);
+        await Next(i => i.Progress.BytesDownloaded == 10 * MB);
+        var speeds = new List<double>();
+        for (var second = 0; second < 3; second++)
+        {
+            _time.Advance(TimeSpan.FromSeconds(1));
+            speeds.Add((await NextItem()).BytesPerSecond);
+        }
+        Assert.Equal([5 * MB, 10 * MB / 3.0, 0], speeds);
+        _time.Advance(TimeSpan.FromSeconds(5));
+        Assert.False(_items.Reader.TryRead(out _));
+    }
+
+    [Fact]
+    public async Task NoSpeedItems_AfterTheDownloadEnds()
+    {
+        var call = await Start(Firefox);
+        call.Download(0);
+        _time.Advance(TimeSpan.FromSeconds(1));
+        call.Download(10 * MB);
+        call.Install();
+        await Next(i => i.Stage == InstallStage.Installing);
+        _time.Advance(TimeSpan.FromSeconds(5));
+        Assert.False(_items.Reader.TryRead(out _));
+    }
+
+    [Fact]
+    public async Task LongQueuedWait_SaysAnotherInstallIsRunning_WithoutCancelling()
+    {
+        var call = await Start(Firefox);
+        call.Queue();
+        _time.Advance(InstallTimings.Default.StallAfter - TimeSpan.FromSeconds(1));
+        while (_items.Reader.TryRead(out var early)) Assert.False(early.Busy);
+        _time.Advance(TimeSpan.FromSeconds(1));
+        var busy = await NextItem();
+        Assert.Equal((InstallStage.Waiting, true), (busy.Stage, busy.Busy));
+        Assert.False(call.Token.IsCancellationRequested);
+        call.Queue();
+        Assert.True((await NextItem()).Busy);
+        call.Download(10 * MB);
+        Assert.False((await Next(i => i.Stage == InstallStage.Downloading)).Busy);
+    }
+
+    [Fact]
+    public async Task RetryThatWaitsInTheQueue_IsNotASecondStall()
+    {
+        var call = await Start(Firefox);
+        call.Download(10 * MB);
+        await Next(i => i.Stage == InstallStage.Downloading);
+        _time.Advance(InstallTimings.Default.StallAfter);
+        var retry = await _upgrader.NextCall(Ct);
+        _time.Advance(InstallTimings.Default.StallAfter);
+        var waiting = await Next(i => i.Busy);
+        Assert.Equal(InstallStage.Waiting, waiting.Stage);
+        Assert.False(retry.Token.IsCancellationRequested);
+        retry.Finish(UpgradeResult.Updated);
+        Assert.Equal(UpgradeResult.Updated, (await NextDone()).Done!.Outcome.Result);
+    }
+
+    [Fact]
+    public async Task NoProgressAtAll_AlsoSaysAnotherInstallIsRunning()
+    {
+        var call = await Start(Firefox);
+        _time.Advance(InstallTimings.Default.StallAfter);
+        Assert.True((await Next(i => i.Busy)).Stage == InstallStage.Waiting);
+        _time.Advance(InstallTimings.Default.Cap);
+        var done = (await NextDone()).Done!;
+        Assert.Equal((UpgradeResult.Failed, UpgradeFailure.TookTooLong), (done.Outcome.Result, done.Outcome.Failure));
+        Assert.True(call.Token.IsCancellationRequested);
     }
 
     [Fact]
@@ -398,6 +480,19 @@ public sealed class InstallQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task HandlerThatThrows_DoesNotStopTheQueueOrTheOtherHandlers()
+    {
+        using var queue = new InstallQueue(_upgrader, _source, _settings, _history, _time, _log);
+        queue.Changed += (_, _) => throw new InvalidOperationException("bug");
+        queue.Changed += (_, item) => _items.Writer.TryWrite(item);
+        queue.Enqueue([Request(Firefox), Request(Vlc)]);
+        (await _upgrader.NextCall(Ct)).Finish(UpgradeResult.Updated);
+        (await _upgrader.NextCall(Ct)).Finish(UpgradeResult.Updated);
+        Assert.Equal(Vlc.Id, (await Next(i => i.Stage == InstallStage.Done && i.Request.Package.Id == Vlc.Id)).Request.Package.Id);
+        Assert.Contains("ERROR Install update of Mozilla.Firefox not delivered", File.ReadAllText(_folder.PathOf("app.log")));
+    }
+
+    [Fact]
     public async Task Dispose_StopsTheQueueQuietly()
     {
         var call = await Start(Firefox, Vlc);
@@ -405,6 +500,7 @@ public sealed class InstallQueueTests : IDisposable
         await Next(i => i.Stage == InstallStage.Downloading);
         _queue.Dispose();
         await call.Cancelled.WaitAsync(Wait, Ct);
+        await _queue.Stopped.WaitAsync(Wait, Ct);
         _queue.Enqueue([Request(Firefox)]);
         Assert.Equal(1, _upgrader.Count);
         Assert.Empty(_history.Entries);
@@ -487,6 +583,8 @@ public sealed class InstallQueueTests : IDisposable
         public CancellationToken Token { get; }
         public Task Cancelled => _cancelled.Task;
         public TaskCompletionSource<UpgradeOutcome> Result { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Queue() => _progress?.Report(new UpgradeProgress(UpgradeStage.Queued, 0, 0, 0, 0));
 
         public void Download(ulong bytes, ulong total = 100 * MB) =>
             _progress?.Report(new UpgradeProgress(UpgradeStage.Downloading, bytes, total, total == 0 ? 0 : (double)bytes / total, 0));

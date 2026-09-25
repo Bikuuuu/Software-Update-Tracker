@@ -13,6 +13,8 @@ public sealed class InstallQueue : IInstaller, IDisposable
 {
     // Reading the app again is a winget list, which takes seconds.
     public static readonly TimeSpan ReadTimeout = TimeSpan.FromMinutes(2);
+    // While bytes don't come, the shown speed is refreshed this often, so it falls to zero.
+    public static readonly TimeSpan SpeedRefresh = TimeSpan.FromSeconds(1);
 
     private readonly Lock _gate = new();
     private readonly List<Entry> _waiting = [];
@@ -25,6 +27,8 @@ public sealed class InstallQueue : IInstaller, IDisposable
     private readonly FileLog _log;
     private readonly InstallTimings _timings;
     private Entry? _current;
+    private Task _worker = Task.CompletedTask;
+    private Task _stopped = Task.CompletedTask;
     private bool _working;
     private bool _disposed;
 
@@ -42,6 +46,12 @@ public sealed class InstallQueue : IInstaller, IDisposable
     // Raised on worker threads, in order. Every request ends with a Done item.
     public event EventHandler<InstallItem>? Changed;
 
+    // Completes once the worker has stopped after Dispose, so its last History write has landed.
+    public Task Stopped
+    {
+        get { lock (_gate) return _stopped; }
+    }
+
     // An app already waiting or installing isn't added twice.
     public void Enqueue(IEnumerable<InstallRequest> requests)
     {
@@ -57,8 +67,8 @@ public sealed class InstallQueue : IInstaller, IDisposable
             }
             if (_working || _waiting.Count == 0) return;
             _working = true;
+            _worker = Task.Run(WorkAsync);
         }
-        _ = Task.Run(WorkAsync);
     }
 
     // A waiting app leaves the queue. A download stops; an installer that already started finishes.
@@ -80,22 +90,43 @@ public sealed class InstallQueue : IInstaller, IDisposable
 
     public void Dispose()
     {
+        Task worker;
         lock (_gate)
         {
             if (_disposed) return;
             _disposed = true;
             _waiting.Clear();
+            worker = _worker;
+            _stopped = StopAsync(worker);
         }
-        // Callbacks run on the thread pool, not on the caller's thread.
-        _ = _stop.CancelAsync();
     }
 
     private static bool Same(PackageKey a, PackageKey b) =>
         string.Equals(a.Id, b.Id, StringComparison.OrdinalIgnoreCase) && string.Equals(a.Source, b.Source, StringComparison.OrdinalIgnoreCase);
 
+    // Each handler runs on its own: one that throws is logged, and neither the others nor the queue stop.
     private void Raise(InstallItem item)
     {
-        if (!_disposed) Changed?.Invoke(this, item);
+        if (_disposed || Changed is not { } changed) return;
+        foreach (var handler in changed.GetInvocationList().Cast<EventHandler<InstallItem>>())
+        {
+            try
+            {
+                handler(this, item);
+            }
+            catch (Exception e)
+            {
+                _log.Error($"Install update of {item.Request.Package.Id} not delivered", e);
+            }
+        }
+    }
+
+    // Cancels on the thread pool, not on the caller's thread, and disposes once the worker stopped using the source.
+    private async Task StopAsync(Task worker)
+    {
+        await _stop.CancelAsync();
+        await worker;
+        _stop.Dispose();
     }
 
     private async Task WorkAsync()
@@ -272,6 +303,7 @@ public sealed class InstallQueue : IInstaller, IDisposable
         private InstallItem _item = new(request, InstallStage.Waiting);
         private CancellationTokenSource? _attempt;
         private ITimer? _stallTimer;
+        private ITimer? _speedTimer;
         private int _attempts;
 
         public InstallRequest Request => request;
@@ -292,7 +324,9 @@ public sealed class InstallQueue : IInstaller, IDisposable
             Stalled = false;
             _item = _item with { Progress = default, BytesPerSecond = 0 };
             _speed.Add(0);
-            _stallTimer = time.CreateTimer(_ => queue.OnStall(this, number), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            // Watches the wait in winget's queue until the first progress, then the download.
+            _stallTimer = time.CreateTimer(_ => queue.OnStall(this, number), null, queue._timings.StallAfter, Timeout.InfiniteTimeSpan);
+            _speedTimer = time.CreateTimer(_ => queue.OnSpeedTick(this, number), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             return new Reporter(progress => queue.OnProgress(this, number, progress));
         }
 
@@ -300,25 +334,39 @@ public sealed class InstallQueue : IInstaller, IDisposable
         {
             _stallTimer?.Dispose();
             _stallTimer = null;
+            _speedTimer?.Dispose();
+            _speedTimer = null;
             _attempt = null;
         }
 
         public bool IsAttempt(int number) => number == _attempts && _attempt is not null;
 
-        // A download counts as moving when its byte count or fraction changes.
+        // A download counts as moving when its byte count or fraction changes. A wait that already said so keeps Busy while queued.
         public InstallItem Report(UpgradeProgress progress, TimeSpan stallAfter)
         {
             var moved = progress.Stage != _item.Progress.Stage || progress.BytesDownloaded != _item.Progress.BytesDownloaded || progress.DownloadFraction != _item.Progress.DownloadFraction;
-            if (progress.Stage == UpgradeStage.Downloading) _speed.Add(progress.BytesDownloaded);
-            if (moved) _stallTimer?.Change(progress.Stage == UpgradeStage.Downloading ? stallAfter : Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            var downloading = progress.Stage == UpgradeStage.Downloading;
+            if (downloading) _speed.Add(progress.BytesDownloaded);
+            if (moved) _stallTimer?.Change(progress.Stage is UpgradeStage.Downloading or UpgradeStage.Queued ? stallAfter : Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            _speedTimer?.Change(downloading ? SpeedRefresh : Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             var stage = progress.Stage switch
             {
                 UpgradeStage.Queued => InstallStage.Waiting,
                 UpgradeStage.Downloading => InstallStage.Downloading,
                 _ => InstallStage.Installing,
             };
-            return _item = _item with { Stage = stage, Progress = progress, BytesPerSecond = _speed.BytesPerSecond, Busy = false };
+            return _item = _item with { Stage = stage, Progress = progress, BytesPerSecond = _speed.BytesPerSecond, Busy = stage == InstallStage.Waiting && _item.Busy };
         }
+
+        // Null when the shown speed is already right. The timer runs again only while there is speed left to fall.
+        public InstallItem? RefreshSpeed()
+        {
+            var speed = _speed.BytesPerSecond;
+            if (speed > 0) _speedTimer?.Change(SpeedRefresh, Timeout.InfiniteTimeSpan);
+            return speed == _item.BytesPerSecond ? null : _item = _item with { BytesPerSecond = speed };
+        }
+
+        public InstallItem QueuedLong() => _item = _item with { Stage = InstallStage.Waiting, Busy = true };
 
         public void Stall()
         {
@@ -341,13 +389,28 @@ public sealed class InstallQueue : IInstaller, IDisposable
         }
     }
 
+    // Still queued in winget: another install is likely running, so say so and keep waiting. Downloading: the download stalled.
     private void OnStall(Entry entry, int attempt)
     {
         lock (_gate)
         {
             if (!entry.IsAttempt(attempt)) return;
+            // This attempt's own progress: a retry starts without any.
+            if (entry.Item.Progress.Stage == UpgradeStage.Queued)
+            {
+                Raise(entry.QueuedLong());
+                return;
+            }
             _log.Warn($"{entry.Request.Package.Id} stalled: no download progress for {_timings.StallAfter.TotalMinutes:0.#} minutes");
             entry.Stall();
+        }
+    }
+
+    private void OnSpeedTick(Entry entry, int attempt)
+    {
+        lock (_gate)
+        {
+            if (entry.IsAttempt(attempt) && entry.Item.Stage == InstallStage.Downloading && entry.RefreshSpeed() is { } item) Raise(item);
         }
     }
 
