@@ -103,6 +103,18 @@ public class WinGetInventoryTests
     }
 
     [Fact]
+    public async Task StoreEntry_IsNeverMatched()
+    {
+        var store = Unmatched(@"MSIX\Example.App_1.0.0.0_x64__abcdefgh", "Example App", "1.0.0.0");
+        _queries.Listed.Add(store);
+        _queries.Listed.Add(Unmatched(@"ARP\Machine\X64\{EXAMPLE-APP}", "Example App", "1.0"));
+        _queries.ByName.Add(("Example App", store with { CatalogId = "Example.App", CatalogName = "Example App", LatestVersion = "1.1" }));
+        var inventory = await Read();
+        Assert.Empty(inventory.Trackable);
+        Assert.Contains(inventory.Elsewhere, a => a.LocalId == store.LocalId && a.UpdatedBy == UpdatedBy.MicrosoftStore);
+    }
+
+    [Fact]
     public async Task FirstList_IsReportedBeforeTheLookups()
     {
         var editor = Unmatched(@"ARP\Machine\X64\{EDITOR}", "Example Editor", "2.0");

@@ -31,7 +31,7 @@ public sealed class WinGetInventory(Func<CancellationToken, Task<IWinGetQueries>
                 .Select(e => e.Id).Where(id => !listedIds.Contains(id)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (candidates.Count > 0) found.AddRange(await queries.FindInstalledByIdAsync(candidates, ct));
         }
-        var matches = Matcher.Accept(unmatched, listedIds, found);
+        var matches = Matcher.Accept(lookable, listedIds, found);
         return matches.Count == 0 ? inventory : Build(listed, matches);
     }
 
