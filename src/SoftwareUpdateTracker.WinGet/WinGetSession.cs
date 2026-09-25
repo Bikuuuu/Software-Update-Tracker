@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.Management.Deployment;
+using SoftwareUpdateTracker.Core;
 using SoftwareUpdateTracker.Core.Checking;
 using SoftwareUpdateTracker.Core.Installing;
 using SoftwareUpdateTracker.Core.Versions;

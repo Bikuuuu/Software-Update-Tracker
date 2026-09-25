@@ -54,6 +54,9 @@ public sealed partial class ChooseAppsViewModel(IAppInventory inventory, Setting
     public partial bool NoMatches { get; private set; }
 
     [ObservableProperty]
+    public partial string EmptyText { get; private set; } = Strings.NoAppsFound;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasProblem))]
     public partial Notice? Problem { get; private set; }
 
@@ -168,6 +171,7 @@ public sealed partial class ChooseAppsViewModel(IAppInventory inventory, Setting
         HasElsewhere = Elsewhere.Count > 0;
         ElsewhereText = Words.Format(Strings.UpdatedElsewhere, Elsewhere.Count);
         NoMatches = !IsLoading && Apps.Count == 0 && Elsewhere.Count == 0;
+        EmptyText = search.Length > 0 ? Strings.NoMatches : ShowSelectedOnly && _all.Count > 0 ? Strings.NoneSelected : Strings.NoAppsFound;
         Counts();
     }
 

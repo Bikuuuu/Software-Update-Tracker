@@ -125,6 +125,8 @@
   <data name="LookingForApps" xml:space="preserve"><value>Looking for installed apps…</value></data>
   <data name="InventoryFailed" xml:space="preserve"><value>The installed apps couldn't be read.</value></data>
   <data name="NoMatches" xml:space="preserve"><value>No apps match your search</value></data>
+  <data name="NoneSelected" xml:space="preserve"><value>No apps selected yet</value></data>
+  <data name="NoAppsFound" xml:space="preserve"><value>No apps found</value></data>
   <data name="UpdatedElsewhere" xml:space="preserve"><value>Updated elsewhere ({0})</value></data>
   <data name="UpdatedElsewhereIntro" xml:space="preserve"><value>These apps update themselves or through another app, so they can't be tracked here.</value></data>
   <data name="Joined" xml:space="preserve"><value>{0} · {1}</value></data>

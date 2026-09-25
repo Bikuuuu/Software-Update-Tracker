@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using SoftwareUpdateTracker.Core;
 using SoftwareUpdateTracker.Core.Checking;
 using SoftwareUpdateTracker.Core.Installing;
 using SoftwareUpdateTracker.Core.Inventory;
@@ -20,12 +21,13 @@ public sealed class AppServices : IDisposable
 {
     private readonly HttpClient _http = new();
     private readonly UiInbox _inbox;
+    private readonly SettingsWriter _writer;
 
     public AppServices(Action<Action> post, Action<string> openLink, bool demo)
     {
         var time = TimeProvider.System;
         Demo = demo;
-        Paths = demo ? DemoPaths() : DataPaths.ForCurrentUser();
+        Paths = demo ? new DataPaths(DemoFolder.Create(Path.GetTempPath())) : DataPaths.ForCurrentUser();
         FirstRun = !demo && !File.Exists(Paths.Settings);
         Log = new FileLog(Paths.Log, time);
         Settings = new SettingsStore(Paths.Settings);
@@ -35,7 +37,7 @@ public sealed class AppServices : IDisposable
         Version = typeof(AppServices).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
         // raw.githubusercontent.com asks clients to say who they are.
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SoftwareUpdateTracker", Version));
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(+https://github.com/Bikuuuu/Software-Update-Tracker)"));
+        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue($"(+{AppInfo.RepositoryUrl})"));
 
         IPackageSource source;
         IPackageUpgrader upgrader;
@@ -59,9 +61,9 @@ public sealed class AppServices : IDisposable
         Scheduler = new CheckScheduler(time, TimeSpan.FromHours(Settings.Current.Settings.CheckIntervalHours));
         Runner = new CheckRunner(Scheduler, Settings, source, dates, time, Log);
         Queue = new InstallQueue(upgrader, source, Settings, History, time, Log, timings);
-        var writer = new SettingsWriter(Settings, Log, post);
-        Updates = new UpdatesViewModel(Scheduler, Queue, Settings, writer, History, time, Log, post, openLink);
-        Choose = new ChooseAppsViewModel(inventory, Settings, writer, Log, post);
+        _writer = new SettingsWriter(Settings, Log, post);
+        Updates = new UpdatesViewModel(Scheduler, Queue, Settings, _writer, History, time, Log, post, openLink);
+        Choose = new ChooseAppsViewModel(inventory, Settings, _writer, Log, post);
         _inbox = new UiInbox(post, Log);
         Scheduler.CheckDue += _inbox.For<CheckTicket>(_ => Updates.CheckStarted());
         Runner.Completed += _inbox.For<CheckCompleted>(Updates.CheckFinished);
@@ -92,24 +94,10 @@ public sealed class AppServices : IDisposable
         Scheduler.Dispose();
         Updates.Dispose();
         _http.Dispose();
-        if (Demo) TryDelete(Paths.Root);
-    }
-
-    // A fresh folder per demo run, deleted on Quit. Folders left by a demo that crashed go at the next start.
-    private static DataPaths DemoPaths()
-    {
-        foreach (var old in Directory.EnumerateDirectories(Path.GetTempPath(), "sut-demo-*")) TryDelete(old);
-        return new DataPaths(Path.Combine(Path.GetTempPath(), "sut-demo-" + Guid.NewGuid().ToString("N")));
-    }
-
-    private static void TryDelete(string folder)
-    {
-        try
-        {
-            Directory.Delete(folder, recursive: true);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-        }
+        // Changes made just before Quit still land; in the demo, a late save would bring the folder back.
+        Task.WhenAll(_writer.Idle, Queue.Stopped).Wait(TimeSpan.FromSeconds(2));
+        if (!Demo) return;
+        Log.Close();
+        DemoFolder.Delete(Paths.Root);
     }
 }
