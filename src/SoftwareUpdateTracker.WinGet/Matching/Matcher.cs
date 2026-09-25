@@ -11,43 +11,57 @@ public static class Matcher
         IReadOnlySet<string> listedIds,
         IReadOnlyList<InstalledPackage> found)
     {
+        var listed = new HashSet<string>(listedIds, StringComparer.OrdinalIgnoreCase);
         var entries = unmatched
             .GroupBy(p => p.LocalId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-        var best = found
-            .Where(f => f.CatalogId is not null && !listedIds.Contains(f.CatalogId))
+        // Closeness is judged before listed ids are set aside, so a listed closer track blocks a farther one.
+        var closest = found
+            .Where(f => !string.IsNullOrWhiteSpace(f.CatalogId) && !string.IsNullOrWhiteSpace(f.CatalogName))
             .Where(f => entries.TryGetValue(f.LocalId, out var entry) && Fits(entry, f))
             .DistinctBy(f => (f.LocalId.ToUpperInvariant(), f.CatalogId!.ToUpperInvariant()))
             .GroupBy(f => f.LocalId, StringComparer.OrdinalIgnoreCase)
-            .Select(g => Best(entries[g.Key], [.. g]))
-            .OfType<InstalledPackage>()
-            .ToList();
-        // One catalog package for two installed apps is ambiguous too.
-        return best
+            .ToDictionary(g => g.Key, g => Closest(entries[g.Key], [.. g]), StringComparer.OrdinalIgnoreCase);
+        // An id among the closest fits of two installed apps is ambiguous for both.
+        var claims = closest.Values
+            .SelectMany(fits => fits)
             .GroupBy(f => f.CatalogId!, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() == 1)
-            .Select(g => g.Single())
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        return closest.Values
+            .Where(fits => fits.Count == 1)
+            .Select(fits => fits[0])
+            .Where(f => !listed.Contains(f.CatalogId!) && claims[f.CatalogId!] == 1)
             .ToDictionary(f => f.LocalId, StringComparer.OrdinalIgnoreCase);
     }
 
-    // Same name, a known version, and not an older track than the installed one.
+    // Same name, numbers that agree, a known version, and not an older track than the installed one.
     private static bool Fits(InstalledPackage entry, InstalledPackage match)
     {
         var installed = PackageVersion.Parse(entry.Version);
         var latest = PackageVersion.Parse(match.LatestVersion);
         var name = NameKey.Of(entry.Name);
         return !installed.IsUnknown && !latest.IsUnknown && latest.CompareTo(installed) >= 0
-            && name.Length > 0 && name == NameKey.Of(match.CatalogName ?? match.Name);
+            && name.Length > 0 && name == NameKey.Of(match.CatalogName)
+            && NumbersAgree(match.CatalogName!, entry);
     }
 
-    // Several fits: the one whose version shares the most leading parts with the installed one, unless tied.
-    private static InstalledPackage? Best(InstalledPackage entry, IReadOnlyList<InstalledPackage> fits)
+    // A number in the catalog's name, such as a track ("3.13") or a year, must be in the installed name or lead its version.
+    private static bool NumbersAgree(string catalogName, InstalledPackage entry)
     {
-        if (fits.Count == 1) return fits[0];
+        var named = NameKey.Numbers(entry.Name);
+        var version = NameKey.Numbers(entry.Version).FirstOrDefault()?.Split('.') ?? [];
+        return NameKey.Numbers(catalogName).All(n => named.Contains(n) || Leads(n.Split('.'), version));
+    }
+
+    private static bool Leads(string[] parts, string[] version) =>
+        parts.Length <= version.Length && parts.Select((part, i) => part == version[i]).All(same => same);
+
+    // The fits whose version shares the most leading parts with the installed one.
+    private static List<InstalledPackage> Closest(InstalledPackage entry, IReadOnlyList<InstalledPackage> fits)
+    {
         var scored = fits.Select(f => (Match: f, Score: SharedParts(f.LatestVersion!, entry.Version))).ToList();
         var top = scored.Max(s => s.Score);
-        var winners = scored.Where(s => s.Score == top).ToList();
-        return winners.Count == 1 ? winners[0].Match : null;
+        return scored.Where(s => s.Score == top).Select(s => s.Match).ToList();
     }
 
     private static int SharedParts(string a, string b)

@@ -11,12 +11,16 @@ public class NameKeyTests
     [InlineData("7-Zip 24.09 (x64)", "7-Zip")]
     [InlineData("Example Studio™ 2025", "Example Studio")]
     [InlineData("Example Tool v2.1 x64", "EXAMPLE TOOL")]
+    [InlineData("Example Runtime", "Example Runtime (LTS)")]
+    [InlineData("Example Tool® 2.0 [32-bit]", "Example Tool")]
     public void SameProduct_HasTheSameKey(string installed, string catalog) => Assert.Equal(NameKey.Of(catalog), NameKey.Of(installed));
 
     [Theory]
     [InlineData("Mozilla Firefox", "Mozilla Firefox Beta")]
     [InlineData("Mozilla Firefox", "Mozilla Firefox Developer Edition")]
     [InlineData("Visual Studio Code", "Visual Studio Code Insiders")]
+    [InlineData("Example Browser", "Example Browser (Beta)")]
+    [InlineData("Example Browser", "Example Browser [Preview]")]
     public void OtherEdition_HasAnotherKey(string installed, string catalog) => Assert.NotEqual(NameKey.Of(catalog), NameKey.Of(installed));
 
     [Theory]
@@ -30,4 +34,12 @@ public class NameKeyTests
     [InlineData("Mozilla Firefox (x64 en-US)", "Mozilla Firefox")]
     [InlineData("Example Studio 2025", "Example Studio")]
     public void SearchTerm_StaysReadable(string name, string term) => Assert.Equal(term, NameKey.SearchTerm(name));
+
+    [Theory]
+    [InlineData("Python 3.12.5 (64-bit)", "3.12.5")]
+    [InlineData("7-Zip 24.09 (x64)", "7|24.9")]
+    [InlineData("Example Studio 2025", "2025")]
+    [InlineData("Example Tool", "")]
+    public void Numbers_AreTheNumbersInAName(string name, string numbers) =>
+        Assert.Equal(numbers, string.Join('|', NameKey.Numbers(name)));
 }
