@@ -3,4 +3,11 @@
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SoftwareUpdateTracker.Core\SoftwareUpdateTracker.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Its build targets copy the COM factory DLL; projects that use this one need them too. -->
+    <PackageReference Include="Microsoft.WindowsPackageManager.ComInterop" PrivateAssets="none" />
+  </ItemGroup>
 </Project>
