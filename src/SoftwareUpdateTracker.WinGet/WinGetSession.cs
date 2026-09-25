@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using Microsoft.Management.Deployment;
 using SoftwareUpdateTracker.Core.Checking;
+using SoftwareUpdateTracker.Core.Installing;
+using SoftwareUpdateTracker.Core.Versions;
 
 namespace SoftwareUpdateTracker.WinGet;
 
@@ -44,6 +46,66 @@ public sealed class WinGetSession : IWinGetQueries
 
     public Task<IReadOnlyList<CatalogEntry>> SearchCatalogByNameAsync(IReadOnlyCollection<string> names, CancellationToken ct) =>
         Batched(names, batch => Entries(_catalog.FindPackages(Selecting(PackageMatchField.Name, PackageFieldMatchOption.ContainsCaseInsensitive, batch, SearchLimit))), ct);
+
+    // Upgrades to exactly this version. winget can't stop a started installer, so a late cancel is ignored.
+    internal async Task<UpgradeOutcome> UpgradeAsync(string id, string version, IProgress<UpgradeProgress>? progress, CancellationToken ct)
+    {
+        var (package, versionId) = await Run(() => Find(id, version), ct);
+        if (package is null) return new UpgradeOutcome(UpgradeResult.NotInstalled);
+        if (versionId is null) return new UpgradeOutcome(UpgradeResult.NoUpdate);
+        ct.ThrowIfCancellationRequested();
+        var stage = (int)UpgradeStage.Queued;
+        var operation = _manager.UpgradePackageAsync(package, new InstallOptions
+        {
+            PackageVersionId = versionId,
+            PackageInstallMode = PackageInstallMode.Silent,
+            AcceptPackageAgreements = true,
+        });
+        operation.Progress = (_, raw) =>
+        {
+            var mapped = ProgressMap.From(raw);
+            Volatile.Write(ref stage, (int)mapped.Stage);
+            progress?.Report(mapped);
+        };
+        using var registration = ct.Register(() =>
+        {
+            if ((UpgradeStage)Volatile.Read(ref stage) is UpgradeStage.Queued or UpgradeStage.Downloading) operation.Cancel();
+        });
+        try
+        {
+            var result = await operation;
+            return ErrorMap.ForUpgrade(result.Status, result.ExtendedErrorCode?.HResult ?? 0, result.InstallerErrorCode);
+        }
+        catch (OperationCanceledException)
+        {
+            return new UpgradeOutcome(UpgradeResult.Cancelled);
+        }
+        catch (Exception e) when (e is COMException or InvalidCastException)
+        {
+            return new UpgradeOutcome(UpgradeResult.Failed, UpgradeFailure.WinGetUnavailable, $"0x{e.HResult:X8}");
+        }
+    }
+
+    // The installed package with this id (the one with an update when there are two), and its catalog entry for this version.
+    private (CatalogPackage? Package, PackageVersionId? Version) Find(string id, string version)
+    {
+        var options = new FindPackagesOptions();
+        options.Filters.Add(new PackageMatchFilter { Field = PackageMatchField.Id, Option = PackageFieldMatchOption.EqualsCaseInsensitive, Value = id });
+        var matches = Checked(_installed.FindPackages(options));
+        CatalogPackage? chosen = null;
+        for (var i = 0; i < matches.Count; i++)
+        {
+            var package = matches[i].CatalogPackage;
+            if (package.InstalledVersion is null || package.DefaultInstallVersion is null) continue;
+            if (!string.Equals(package.Id, id, StringComparison.OrdinalIgnoreCase)) continue;
+            if (chosen is null || (package.IsUpdateAvailable && !chosen.IsUpdateAvailable)) chosen = package;
+        }
+        if (chosen is null) return (null, null);
+        var versions = chosen.AvailableVersions;
+        for (var i = 0; i < versions.Count; i++)
+            if (PackageVersion.Same(versions[i].Version, version)) return (chosen, versions[i]);
+        return (chosen, null);
+    }
 
     private static WinGetSession Open()
     {
