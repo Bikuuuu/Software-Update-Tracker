@@ -31,6 +31,7 @@ public class AutoInstallRulesTests
     [InlineData(AppStatus.Phantom)]
     [InlineData(AppStatus.VersionUnknown)]
     [InlineData(AppStatus.NotFound)]
+    [InlineData(AppStatus.NotInCatalog)]
     public void OnlyAvailableRows_Install(AppStatus status) => Assert.Equal(AutoBlock.NotAvailable, Check(status: status));
 
     [Fact]
