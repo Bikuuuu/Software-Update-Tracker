@@ -10,6 +10,9 @@ public class ManifestTests
     [InlineData("Notepad++.Notepad++", "8.9.8.1", "n/Notepad%2B%2B/Notepad%2B%2B/8.9.8.1/Notepad%2B%2B.Notepad%2B%2B.installer.yaml")]
     [InlineData("Microsoft.VisualStudio.2022.Community", "17.14.3", "m/Microsoft/VisualStudio/2022/Community/17.14.3/Microsoft.VisualStudio.2022.Community.installer.yaml")]
     [InlineData("7zip.7zip", "25.01", "7/7zip/7zip/25.01/7zip.7zip.installer.yaml")]
+    [InlineData("Example.Tool", "1.0 beta", "e/Example/Tool/1.0%20beta/Example.Tool.installer.yaml")]
+    [InlineData("#Example.Tool", "1.0", "%23/%23Example/Tool/1.0/%23Example.Tool.installer.yaml")]
+    [InlineData("%Example.Tool", "1.0", "%25/%25Example/Tool/1.0/%25Example.Tool.installer.yaml")]
     public void InstallerPath_HasAFolderPerIdPart(string id, string version, string path) =>
         Assert.Equal(path, Manifest.InstallerPath(id, version));
 

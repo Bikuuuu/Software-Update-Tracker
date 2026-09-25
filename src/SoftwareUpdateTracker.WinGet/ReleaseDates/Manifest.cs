@@ -20,8 +20,9 @@ public static partial class Manifest
     public static string? InstallerPath(string id, string version)
     {
         if (id.Length > 128 || !IdPattern().IsMatch(id) || !VersionPattern().IsMatch(version) || version.Trim('.').Length == 0) return null;
+        var first = Uri.EscapeDataString(char.ToLowerInvariant(id[0]).ToString());
         var folders = string.Join('/', id.Split('.').Select(Uri.EscapeDataString));
-        return $"{char.ToLowerInvariant(id[0])}/{folders}/{Uri.EscapeDataString(version)}/{Uri.EscapeDataString(id)}.installer.yaml";
+        return $"{first}/{folders}/{Uri.EscapeDataString(version)}/{Uri.EscapeDataString(id)}.installer.yaml";
     }
 
     public static DateOnly? ReleaseDate(string yaml)

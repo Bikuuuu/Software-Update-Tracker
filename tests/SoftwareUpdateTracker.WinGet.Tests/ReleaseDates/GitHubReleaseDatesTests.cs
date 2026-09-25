@@ -114,4 +114,14 @@ public sealed class GitHubReleaseDatesTests : IDisposable
         Assert.Null(await dates.GetAsync("../Firefox", "131.0", Ct));
         Assert.Empty(http.Requests);
     }
+
+    [Fact]
+    public async Task OddFirstCharacter_IsEscapedNotThrown()
+    {
+        var (dates, http) = Create((_, _) => FakeHttp.Status(HttpStatusCode.NotFound));
+        Assert.Null(await dates.GetAsync("%Example.Tool", "1.0", Ct));
+        Assert.Equal(
+            "https://raw.githubusercontent.com/microsoft/winget-pkgs/master/manifests/%25/%25Example/Tool/1.0/%25Example.Tool.installer.yaml",
+            Assert.Single(http.Requests).AbsoluteUri);
+    }
 }
