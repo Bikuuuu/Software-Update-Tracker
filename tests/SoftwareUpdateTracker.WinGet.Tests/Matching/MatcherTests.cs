@@ -116,8 +116,8 @@ public class MatcherTests
     [Fact]
     public void NumberInTheInstalledName_Agrees()
     {
-        var zip = Unmatched(@"ARP\Machine\X64\7-Zip", "7-Zip 24.09 (x64)", "24.09");
-        Assert.Single(Matcher.Accept([zip], NothingListed, [Found(zip, "7zip.7zip", "7-Zip", "25.01")]));
+        var zip = Unmatched(@"ARP\Machine\X64\7-Zip", "7-Zip 24.08 (x64)", "24.08");
+        Assert.Single(Matcher.Accept([zip], NothingListed, [Found(zip, "7zip.7zip", "7-Zip", "24.09")]));
     }
 
     [Fact]
@@ -172,5 +172,12 @@ public class MatcherTests
     {
         var listed = new HashSet<string> { "Python.Python.3.12" };
         Assert.Empty(Matcher.Accept([Python], listed, [Found(Python, "python.python.3.12", "Python 3.12", "3.12.10")]));
+    }
+
+    [Fact]
+    public void OnlyANewerMajorWithABareName_IsRejected()
+    {
+        var runtime = Unmatched(@"ARP\Machine\X64\{RUNTIME}", "Example Runtime", "24.11.0");
+        Assert.Empty(Matcher.Accept([runtime], NothingListed, [Found(runtime, "Example.Runtime", "Example Runtime", "25.2.0")]));
     }
 }

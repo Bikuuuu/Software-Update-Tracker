@@ -34,13 +34,14 @@ public static class Matcher
             .ToDictionary(f => f.LocalId, StringComparer.OrdinalIgnoreCase);
     }
 
-    // Same name, numbers that agree, a known version, and not an older track than the installed one.
+    // Same name, numbers that agree, a known version on the same major track, and not older than the installed one.
     private static bool Fits(InstalledPackage entry, InstalledPackage match)
     {
         var installed = PackageVersion.Parse(entry.Version);
         var latest = PackageVersion.Parse(match.LatestVersion);
         var name = NameKey.Of(entry.Name);
         return !installed.IsUnknown && !latest.IsUnknown && latest.CompareTo(installed) >= 0
+            && SharedParts(match.LatestVersion!, entry.Version) >= 1
             && name.Length > 0 && name == NameKey.Of(match.CatalogName)
             && NumbersAgree(match.CatalogName!, entry);
     }
