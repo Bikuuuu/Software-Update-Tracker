@@ -31,7 +31,7 @@ public class WinGetUpgraderTests
     {
         RunnerOnly();
         var before = await InstalledAsync(NotepadPlusPlus);
-        Assert.Equal(OldNotepadPlusPlus, before.Version);
+        Assert.True(PackageVersion.Same(OldNotepadPlusPlus, before.Version), before.Version);
         var stages = new List<UpgradeStage>();
         var progress = new Reported<UpgradeProgress>(p =>
         {
@@ -51,7 +51,8 @@ public class WinGetUpgraderTests
     {
         RunnerOnly();
         var before = await InstalledAsync(Vlc);
-        Assert.Equal(OldVlc, before.Version);
+        // The MSI reports 3.0.20 as 3.0.20.0, so compare versions, not text.
+        Assert.True(PackageVersion.Same(OldVlc, before.Version), before.Version);
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Ct);
         var fired = 0;
         // Cancel from another thread, not from inside winget's progress callback.
@@ -64,7 +65,8 @@ public class WinGetUpgraderTests
         var outcome = await new WinGetUpgrader().UpgradeAsync(new PackageKey(Vlc, "winget"), before.LatestVersion!, progress, cancel.Token);
 
         Assert.Equal(UpgradeResult.Cancelled, outcome.Result);
-        Assert.Equal(OldVlc, (await InstalledAsync(Vlc)).Version);
+        var after = await InstalledAsync(Vlc);
+        Assert.True(PackageVersion.Same(OldVlc, after.Version), after.Version);
     }
 
     [Fact]
