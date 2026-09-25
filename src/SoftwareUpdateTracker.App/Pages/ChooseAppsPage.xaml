@@ -1,0 +1,105 @@
+<pages:FlyoutPage
+    x:Class="SoftwareUpdateTracker.App.Pages.ChooseAppsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:app="using:SoftwareUpdateTracker.App"
+    xmlns:choose="using:SoftwareUpdateTracker.Presentation.Choose"
+    xmlns:controls="using:SoftwareUpdateTracker.App.Controls"
+    xmlns:pages="using:SoftwareUpdateTracker.App.Pages"
+    xmlns:p="using:SoftwareUpdateTracker.Presentation">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel x:Name="Top" Padding="16,12,16,8" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Style="{StaticResource IconButton}" Click="OnBack" ToolTipService.ToolTip="{x:Bind p:Strings.Back}" AutomationProperties.Name="{x:Bind p:Strings.Back}">
+                    <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                </Button>
+                <TextBlock Text="{x:Bind p:Strings.ChooseApps}" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Text="{x:Bind p:Strings.ChooseIntro}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
+            <TextBox PlaceholderText="{x:Bind p:Strings.SearchApps}" AutomationProperties.Name="{x:Bind p:Strings.SearchApps}"
+                     Text="{x:Bind Choose.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Grid>
+                <TextBlock Text="{x:Bind Choose.SelectedText, Mode=OneWay}" Style="{StaticResource Secondary}" VerticalAlignment="Center" />
+                <HyperlinkButton HorizontalAlignment="Right" Padding="4,2" FontSize="12" Content="{x:Bind Choose.FilterText, Mode=OneWay}" Command="{x:Bind Choose.ToggleShowSelectedCommand}" />
+            </Grid>
+            <InfoBar IsOpen="{x:Bind app:Ui.Has(Choose.Problem), Mode=OneWay}" IsClosable="False"
+                     Title="{x:Bind Choose.Problem.Title, Mode=OneWay}" Message="{x:Bind Choose.Problem.Message, Mode=OneWay}" Severity="{x:Bind app:Ui.Severity(Choose.Problem.Severity), Mode=OneWay}">
+                <InfoBar.ActionButton>
+                    <Button Content="{x:Bind p:Strings.Retry}" Command="{x:Bind Choose.RetryCommand}" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel x:Name="Body" Padding="16,0,16,12" Spacing="2">
+                <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,12" Visibility="{x:Bind Choose.IsLoading, Mode=OneWay}">
+                    <ProgressRing Width="20" Height="20" IsActive="{x:Bind Choose.IsLoading, Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind p:Strings.LookingForApps}" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{x:Bind p:Strings.NoMatches}" Style="{StaticResource Secondary}" Padding="0,12" Visibility="{x:Bind Choose.NoMatches, Mode=OneWay}" />
+                <ItemsControl ItemsSource="{x:Bind Choose.Apps}" XYFocusKeyboardNavigation="Enabled" IsTabStop="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="choose:ChooseRow">
+                            <CheckBox IsChecked="{x:Bind IsTracked, Mode=TwoWay}" HorizontalAlignment="Stretch" Padding="8,4" AutomationProperties.Name="{x:Bind Name}">
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <controls:AppIcon Width="28" Height="28" LocalId="{x:Bind LocalId}" AppName="{x:Bind Name}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{x:Bind Detail}" Style="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </CheckBox>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Button Margin="0,8,0,0" Padding="4,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Background="Transparent" BorderThickness="0"
+                        Command="{x:Bind Choose.ToggleElsewhereCommand}" Visibility="{x:Bind Choose.HasElsewhere, Mode=OneWay}" AutomationProperties.Name="{x:Bind Choose.ElsewhereText, Mode=OneWay}">
+                    <Grid>
+                        <TextBlock Text="{x:Bind Choose.ElsewhereText, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <FontIcon HorizontalAlignment="Right" FontSize="12" Glyph="{x:Bind app:Ui.Chevron(Choose.IsElsewhereExpanded), Mode=OneWay}" />
+                    </Grid>
+                </Button>
+                <StackPanel Spacing="2" Visibility="{x:Bind app:Ui.Both(Choose.IsElsewhereExpanded, Choose.HasElsewhere), Mode=OneWay}">
+                    <TextBlock Text="{x:Bind p:Strings.UpdatedElsewhereIntro}" Style="{StaticResource Secondary}" TextWrapping="Wrap" Margin="4,0,4,4" />
+                    <ItemsControl ItemsSource="{x:Bind Choose.Elsewhere}" IsTabStop="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="choose:ElsewhereRow">
+                                <Grid Padding="8,4" ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <controls:AppIcon Width="28" Height="28" LocalId="{x:Bind LocalId}" AppName="{x:Bind Name}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{x:Bind Detail}" Style="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid x:Name="Bottom" Grid.Row="2" Style="{StaticResource Footer}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{x:Bind p:Strings.ChooseFooter}" Style="{StaticResource Secondary}" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Style="{StaticResource AccentButtonStyle}" Content="{x:Bind p:Strings.Done}" Click="OnBack" />
+        </Grid>
+    </Grid>
+</pages:FlyoutPage>

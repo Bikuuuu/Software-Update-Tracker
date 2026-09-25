@@ -17,6 +17,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SoftwareUpdateTracker.Core\SoftwareUpdateTracker.Core.csproj" />
+    <ProjectReference Include="..\SoftwareUpdateTracker.Presentation\SoftwareUpdateTracker.Presentation.csproj" />
+    <ProjectReference Include="..\SoftwareUpdateTracker.WinGet\SoftwareUpdateTracker.WinGet.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\assets\icon\generated\tray.ico" Link="Assets\tray.ico" CopyToOutputDirectory="PreserveNewest" />

@@ -1,0 +1,45 @@
+<pages:FlyoutPage
+    x:Class="SoftwareUpdateTracker.App.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:pages="using:SoftwareUpdateTracker.App.Pages"
+    xmlns:p="using:SoftwareUpdateTracker.Presentation">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel x:Name="Top" Padding="16,12,16,8" Orientation="Horizontal" Spacing="6">
+            <Button Style="{StaticResource IconButton}" Click="OnBack" ToolTipService.ToolTip="{x:Bind p:Strings.Back}" AutomationProperties.Name="{x:Bind p:Strings.Back}">
+                <FontIcon Glyph="&#xE72B;" FontSize="14" />
+            </Button>
+            <TextBlock Text="{x:Bind p:Strings.Settings}" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel x:Name="Body" Padding="16,0,16,12" Spacing="4">
+                <TextBlock Text="{x:Bind p:Strings.AppsSection}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,4,0,2" />
+                <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,10" Click="OnChooseApps">
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind p:Strings.ChooseApps}" />
+                            <TextBlock Text="{x:Bind TrackedText}" Style="{StaticResource Secondary}" />
+                        </StackPanel>
+                        <FontIcon HorizontalAlignment="Right" VerticalAlignment="Center" Glyph="&#xE76C;" FontSize="12" />
+                    </Grid>
+                </Button>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid x:Name="Bottom" Grid.Row="2" Style="{StaticResource Footer}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{x:Bind VersionText}" Style="{StaticResource Secondary}" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="{x:Bind p:Strings.Quit}" Click="OnQuit" />
+        </Grid>
+    </Grid>
+</pages:FlyoutPage>
