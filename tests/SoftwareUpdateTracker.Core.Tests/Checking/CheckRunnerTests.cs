@@ -248,6 +248,61 @@ public sealed class CheckRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task UnreadableSettingsAtStartup_AreReadAgainOnTheNextCheck()
+    {
+        _source.Default = Offering("130.0", "131.0");
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            _store.Load();
+            Assert.Equal(CheckProblem.SettingsNotSaved, (await StartupCheck()).Problem);
+        }
+        _time.Advance(CheckScheduler.RetryDelays[0]);
+        var retry = await NextCompleted();
+        Assert.Equal(CheckProblem.None, retry.Problem);
+        Assert.Equal(AppStatus.Available, Assert.Single(retry.Apps).Status);
+    }
+
+    [Fact]
+    public async Task DateSaveFailure_KeepsTheMergedRows()
+    {
+        _source.Default = Offering("130.0", "131.0");
+        FileStream? held = null;
+        _dates.Reply = _ =>
+        {
+            // Locks settings.json between the merge's save and the date's save.
+            held = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
+            return Task.FromResult<DateOnly?>(new DateOnly(2026, 9, 20));
+        };
+        var completed = await StartupCheck();
+        held?.Dispose();
+        Assert.Equal(CheckProblem.None, completed.Problem);
+        var check = Assert.Single(completed.Apps);
+        Assert.True(check.NewVersion);
+        Assert.Null(check.App.Offer!.ReleaseDate);
+        Assert.Equal("131.0", Assert.Single(_store.Current.Apps).Offer!.Version);
+    }
+
+    [Fact]
+    public async Task DeadlineWhileFetchingDates_KeepsTheMergedRows()
+    {
+        _source.Default = Offering("130.0", "131.0");
+        var asked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _dates.Reply = async ct =>
+        {
+            asked.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return null;
+        };
+        _time.Advance(CheckScheduler.StartupDelay);
+        await asked.Task.WaitAsync(Wait, Ct);
+        _time.Advance(CheckRunner.Deadline);
+        var completed = await NextCompleted();
+        Assert.Equal(CheckProblem.None, completed.Problem);
+        Assert.True(Assert.Single(completed.Apps).NewVersion);
+        Assert.Equal(_time.GetUtcNow() + TimeSpan.FromHours(6), _scheduler.NextCheck);
+    }
+
+    [Fact]
     public async Task PackageGoneFromTheCatalog_IsNotInCatalog()
     {
         _source.Default = new CatalogRead([], [new PackageKey("Mozilla.Firefox", "winget")]);
@@ -300,6 +355,8 @@ public sealed class CheckRunnerTests : IDisposable
 
         public Dictionary<string, DateOnly> Known { get; } = [];
         public Exception? Error { get; set; }
+        // Used instead of Known and Error when set.
+        public Func<CancellationToken, Task<DateOnly?>>? Reply { get; set; }
 
         public IReadOnlyList<string> Asked
         {
@@ -309,6 +366,7 @@ public sealed class CheckRunnerTests : IDisposable
         public Task<DateOnly?> GetAsync(string id, string version, CancellationToken ct)
         {
             lock (_asked) _asked.Add($"{id} {version}");
+            if (Reply is not null) return Reply(ct);
             if (Error is not null) return Task.FromException<DateOnly?>(Error);
             return Task.FromResult<DateOnly?>(Known.TryGetValue($"{id} {version}", out var date) ? date : null);
         }

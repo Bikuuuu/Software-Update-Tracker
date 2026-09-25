@@ -126,6 +126,8 @@ public sealed class CheckRunner : IDisposable
 
     private async Task<IReadOnlyList<AppCheck>> CheckAsync(CancellationToken ct)
     {
+        // A file that couldn't be read is read again first; while it still can't be, the check fails and retries.
+        if (_store.Unreadable) _store.Update(file => file);
         var requested = _store.Current.Apps;
         if (requested.Count == 0) return [];
         var read = await _source.ReadAsync(requested, ct);
@@ -149,17 +151,26 @@ public sealed class CheckRunner : IDisposable
     }
 
     // A date is fetched once per offered version and kept with the offer; a miss falls back to first seen.
+    // The merge is already saved, so a failure here keeps the merged rows; their dates come on a later check.
     private async Task<IReadOnlyList<AppCheck>> AddReleaseDatesAsync(IReadOnlyList<AppCheck> checks, CancellationToken ct)
     {
-        var dates = new List<(TrackedApp App, string Version, DateOnly Date)>();
-        foreach (var check in checks)
+        try
         {
-            if (check.Status != AppStatus.Available || check.App.Offer is not { ReleaseDate: null } offer) continue;
-            if (await DateOf(check.Package?.Id ?? check.App.Id, offer.Version, ct) is { } date) dates.Add((check.App, offer.Version, date));
+            var dates = new List<(TrackedApp App, string Version, DateOnly Date)>();
+            foreach (var check in checks)
+            {
+                if (check.Status != AppStatus.Available || check.App.Offer is not { ReleaseDate: null } offer) continue;
+                if (await DateOf(check.Package?.Id ?? check.App.Id, offer.Version, ct) is { } date) dates.Add((check.App, offer.Version, date));
+            }
+            if (dates.Count == 0) return checks;
+            _store.Update(file => file with { Apps = file.Apps.Select(app => Dated(app, dates)).ToList() });
+            return checks.Select(check => check with { App = Dated(check.App, dates) }).ToList();
         }
-        if (dates.Count == 0) return checks;
-        _store.Update(file => file with { Apps = file.Apps.Select(app => Dated(app, dates)).ToList() });
-        return checks.Select(check => check with { App = Dated(check.App, dates) }).ToList();
+        catch (Exception e) when (e is IOException or OperationCanceledException)
+        {
+            _log.Warn($"Release dates not saved: {e.Message}");
+            return checks;
+        }
     }
 
     private async Task<DateOnly?> DateOf(string id, string version, CancellationToken ct)
