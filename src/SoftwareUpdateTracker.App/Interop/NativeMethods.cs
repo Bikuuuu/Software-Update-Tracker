@@ -16,7 +16,7 @@ internal static class NativeMethods
     public const uint NOTIFYICON_VERSION_4 = 4;
     public const uint IMAGE_ICON = 1, LR_LOADFROMFILE = 0x10;
     public const int SM_CXSMICON = 49;
-    public const uint MF_STRING = 0x0, MF_SEPARATOR = 0x800;
+    public const uint MF_STRING = 0x0, MF_GRAYED = 0x1, MF_SEPARATOR = 0x800;
     public const uint TPM_RIGHTBUTTON = 0x2, TPM_BOTTOMALIGN = 0x20, TPM_RETURNCMD = 0x100;
 
     public delegate nint WndProc(nint hwnd, uint msg, nint wParam, nint lParam);

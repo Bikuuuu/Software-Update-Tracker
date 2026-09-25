@@ -35,7 +35,7 @@ public partial class App : Application
 
         var tray = new TrayIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "tray.ico"), AppInfo.Name)
         {
-            MenuItems = [(MenuOpen, "Open Software Update Tracker"), (MenuTestToast, "Show test notification"), (0, "-"), (MenuQuit, "Quit")],
+            Menu = () => [(MenuOpen, "Open Software Update Tracker", true), (MenuTestToast, "Show test notification", true), (0, "-", true), (MenuQuit, "Quit", true)],
         };
         _tray = tray;
         tray.Activated += (_, _) => flyout.OnTrayClick();
