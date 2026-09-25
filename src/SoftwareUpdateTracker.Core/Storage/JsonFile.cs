@@ -50,10 +50,10 @@ internal static class JsonFile
     // Throws IOException when the file can't be written; the old file stays.
     public static void Save<T>(string path, T value, JsonTypeInfo<T> type)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var temp = path + ".tmp";
         try
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 JsonSerializer.Serialize(stream, value, type);
