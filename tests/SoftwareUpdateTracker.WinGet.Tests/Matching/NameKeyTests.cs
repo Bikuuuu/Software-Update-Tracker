@@ -1,0 +1,33 @@
+using SoftwareUpdateTracker.WinGet.Matching;
+using Xunit;
+
+namespace SoftwareUpdateTracker.WinGet.Tests.Matching;
+
+public class NameKeyTests
+{
+    [Theory]
+    [InlineData("Python 3.12.5 (64-bit)", "Python 3.12")]
+    [InlineData("Mozilla Firefox (x64 en-US)", "Mozilla Firefox")]
+    [InlineData("7-Zip 24.09 (x64)", "7-Zip")]
+    [InlineData("Example Studio™ 2025", "Example Studio")]
+    [InlineData("Example Tool v2.1 x64", "EXAMPLE TOOL")]
+    public void SameProduct_HasTheSameKey(string installed, string catalog) => Assert.Equal(NameKey.Of(catalog), NameKey.Of(installed));
+
+    [Theory]
+    [InlineData("Mozilla Firefox", "Mozilla Firefox Beta")]
+    [InlineData("Mozilla Firefox", "Mozilla Firefox Developer Edition")]
+    [InlineData("Visual Studio Code", "Visual Studio Code Insiders")]
+    public void OtherEdition_HasAnotherKey(string installed, string catalog) => Assert.NotEqual(NameKey.Of(catalog), NameKey.Of(installed));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("(x64) 1.0")]
+    public void NothingLeft_IsEmpty(string? name) => Assert.Equal("", NameKey.Of(name));
+
+    [Theory]
+    [InlineData("Python 3.12.5 (64-bit)", "Python")]
+    [InlineData("Mozilla Firefox (x64 en-US)", "Mozilla Firefox")]
+    [InlineData("Example Studio 2025", "Example Studio")]
+    public void SearchTerm_StaysReadable(string name, string term) => Assert.Equal(term, NameKey.SearchTerm(name));
+}
