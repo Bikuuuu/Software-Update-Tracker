@@ -28,7 +28,7 @@
                 <TextBlock Text="{x:Bind Choose.SelectedText, Mode=OneWay}" Style="{StaticResource Secondary}" VerticalAlignment="Center" />
                 <HyperlinkButton HorizontalAlignment="Right" Padding="4,2" FontSize="12" Content="{x:Bind Choose.FilterText, Mode=OneWay}" Command="{x:Bind Choose.ToggleShowSelectedCommand}" />
             </Grid>
-            <InfoBar IsOpen="{x:Bind app:Ui.Has(Choose.Problem), Mode=OneWay}" IsClosable="False"
+            <InfoBar IsOpen="{x:Bind Choose.HasProblem, Mode=OneWay}" IsClosable="False"
                      Title="{x:Bind Choose.Problem.Title, Mode=OneWay}" Message="{x:Bind Choose.Problem.Message, Mode=OneWay}" Severity="{x:Bind app:Ui.Severity(Choose.Problem.Severity), Mode=OneWay}">
                 <InfoBar.ActionButton>
                     <Button Content="{x:Bind p:Strings.Retry}" Command="{x:Bind Choose.RetryCommand}" />
@@ -98,8 +98,8 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="{x:Bind p:Strings.ChooseFooter}" Style="{StaticResource Secondary}" VerticalAlignment="Center" />
-            <Button Grid.Column="1" Style="{StaticResource AccentButtonStyle}" Content="{x:Bind p:Strings.Done}" Click="OnBack" />
+            <TextBlock Text="{x:Bind Choose.FooterText, Mode=OneWay}" Style="{StaticResource Secondary}" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Style="{StaticResource AccentButtonStyle}" Content="{x:Bind p:Strings.Done}" Click="OnDone" />
         </Grid>
     </Grid>
 </pages:FlyoutPage>

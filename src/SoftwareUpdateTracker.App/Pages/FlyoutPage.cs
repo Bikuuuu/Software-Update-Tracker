@@ -34,6 +34,13 @@ public partial class FlyoutPage : Page
         if (Frame.CanGoBack) Frame.GoBack(new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft });
     }
 
+    // Straight back to Updates, the first page.
+    protected void Home()
+    {
+        while (Frame.BackStackDepth > 1) Frame.BackStack.RemoveAt(Frame.BackStackDepth - 1);
+        Back();
+    }
+
     // The body is the panel inside the page's ScrollViewer, so its height is the full content height.
     protected void TrackHeight(FrameworkElement top, FrameworkElement body, FrameworkElement bottom)
     {

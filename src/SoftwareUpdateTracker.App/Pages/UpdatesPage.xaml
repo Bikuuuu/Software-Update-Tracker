@@ -24,33 +24,34 @@
                         <HyperlinkButton Content="{x:Bind p:Strings.Undo}" Command="{x:Bind UndoCommand}" Padding="4,2" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="2" Visibility="{x:Bind app:Ui.Collapsed(IsRemoved), Mode=OneWay}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" MaxWidth="180" />
-                            <Border Visibility="{x:Bind Auto, Mode=OneWay}" Padding="6,0,6,1" CornerRadius="8" VerticalAlignment="Center" Background="{ThemeResource AccentFillColorDefaultBrush}">
+                        <!-- Left-aligned, so a long name trims while the Auto pill stays right after it. -->
+                        <Grid HorizontalAlignment="Left">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                            <Border Grid.Column="1" Visibility="{x:Bind Auto, Mode=OneWay}" Margin="6,0,0,0" Padding="6,0,6,1" CornerRadius="8" VerticalAlignment="Center" Background="{ThemeResource AccentFillColorDefaultBrush}">
                                 <TextBlock Text="{x:Bind p:Strings.Auto}" FontSize="11" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                             </Border>
-                        </StackPanel>
+                        </Grid>
                         <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Visibility="{x:Bind View.ShowVersions, Mode=OneWay}">
                             <Run Text="{x:Bind View.From, Mode=OneWay}" /><Run Text=" → " /><Run Text="{x:Bind View.To.Unchanged, Mode=OneWay}" /><Run Text="{x:Bind View.To.Changed, Mode=OneWay}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                         </TextBlock>
                         <ProgressBar Margin="0,4" Visibility="{x:Bind View.ShowProgress, Mode=OneWay}" IsIndeterminate="{x:Bind View.Indeterminate, Mode=OneWay}" Value="{x:Bind View.Percent, Mode=OneWay}" />
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="{x:Bind View.Warning, Mode=OneWay}" />
-                            <TextBlock Text="{x:Bind View.Status, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" MaxWidth="200" />
-                            <TextBlock Text="·" Style="{StaticResource Secondary}" Visibility="{x:Bind View.ShowNotes, Mode=OneWay}" />
-                            <HyperlinkButton Padding="0" MinHeight="0" FontSize="12" Content="{x:Bind p:Strings.WhatsNew}" Command="{x:Bind OpenNotesCommand}" Visibility="{x:Bind View.ShowNotes, Mode=OneWay}" />
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE7BA;" FontSize="12" Margin="0,2,4,0" VerticalAlignment="Top" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="{x:Bind View.Warning, Mode=OneWay}" />
+                            <TextBlock Grid.Column="1" Style="{StaticResource Secondary}" TextWrapping="Wrap"
+                                       controls:RowStatus.View="{x:Bind View, Mode=OneWay}" controls:RowStatus.Notes="{x:Bind OpenNotesCommand}" />
+                        </Grid>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Visibility="{x:Bind app:Ui.Collapsed(IsRemoved), Mode=OneWay}">
                         <TextBlock Text="{x:Bind View.PercentText, Mode=OneWay}" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" />
                         <Button Content="{x:Bind View.ActionText, Mode=OneWay}" Command="{x:Bind PrimaryCommand}" Visibility="{x:Bind View.HasAction, Mode=OneWay}" />
-                        <Button Content="{x:Bind p:Strings.Details}" Visibility="{x:Bind View.HasDetails, Mode=OneWay}">
-                            <Button.Flyout>
-                                <Flyout>
-                                    <TextBlock Text="{x:Bind View.Details, Mode=OneWay}" IsTextSelectionEnabled="True" />
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
                         <Button Style="{StaticResource IconButton}" Command="{x:Bind CancelCommand}" Visibility="{x:Bind View.CanCancel, Mode=OneWay}"
                                 ToolTipService.ToolTip="{x:Bind p:Strings.Cancel}" AutomationProperties.Name="{x:Bind p:Strings.Cancel}">
                             <FontIcon Glyph="&#xE711;" FontSize="12" />
@@ -151,7 +152,7 @@
                     </Button>
                 </StackPanel>
             </Grid>
-            <InfoBar IsOpen="{x:Bind app:Ui.Has(Updates.Problem), Mode=OneWay}" IsClosable="False"
+            <InfoBar IsOpen="{x:Bind Updates.HasProblem, Mode=OneWay}" IsClosable="False"
                      Title="{x:Bind Updates.Problem.Title, Mode=OneWay}" Message="{x:Bind Updates.Problem.Message, Mode=OneWay}" Severity="{x:Bind app:Ui.Severity(Updates.Problem.Severity), Mode=OneWay}">
                 <InfoBar.ActionButton>
                     <Button Content="{x:Bind p:Strings.OpenStore}" Command="{x:Bind Updates.OpenStoreCommand}" Visibility="{x:Bind Updates.Problem.OffersStore, Mode=OneWay, FallbackValue=Collapsed}" />
@@ -165,7 +166,7 @@
                     </Button.Flyout>
                 </Button>
             </InfoBar>
-            <ItemsControl ItemsSource="{x:Bind Updates.Notices}" ItemTemplate="{StaticResource NoticeBar}" />
+            <ItemsControl ItemsSource="{x:Bind Updates.Notices}" ItemTemplate="{StaticResource NoticeBar}" IsTabStop="False" />
         </StackPanel>
 
         <ScrollViewer Grid.Row="1">

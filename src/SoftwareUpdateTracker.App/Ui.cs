@@ -17,8 +17,6 @@ public static class Ui
 
     public static Visibility Both(bool first, bool second) => Visible(first && second);
 
-    public static bool Has(object? value) => value is not null;
-
     public static string Chevron(bool expanded) => expanded ? "\uE70E" : "\uE70D";
 
     public static InfoBarSeverity Severity(NoticeSeverity severity) => severity switch

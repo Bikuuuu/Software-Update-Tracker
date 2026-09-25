@@ -28,4 +28,7 @@ public sealed partial class ChooseAppsPage : FlyoutPage
     }
 
     private void OnBack(object sender, RoutedEventArgs e) => Back();
+
+    // Done returns to Updates (spec §4.4), even when Choose apps was opened from Settings.
+    private void OnDone(object sender, RoutedEventArgs e) => Home();
 }
