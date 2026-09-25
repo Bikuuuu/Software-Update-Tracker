@@ -92,7 +92,7 @@ Mockup: [`flyout-mockup.png`](flyout-mockup.png). Letter tiles stand in for real
 | Not found | "Not installed anymore" / "Not found in winget" | **Stop tracking** |
 
 - **The "…" menu:** Update now, Skip this version (Undo is in the same menu), Auto-update on/off, What's new, Stop tracking. Stop tracking shows an inline "Removed · Undo" for 5 s.
-- **Up to date:** a collapsed card ("9 apps are up to date") showing a stack of icons. It expands to the full list and is expanded by default when nothing needs updating.
+- **Up to date:** a collapsed card ("9 apps are up to date") showing a stack of icons. It expands to the full list and is expanded by default when nothing needs updating. Skipped versions and apps whose version is unknown are listed here too; a skipped app's "…" menu has Undo.
 - **Footer:** "Next check in 5 h 58 min" and the accent button **Update all (N)**. N counts rows in the Available or Failed state; skipped, phantom and unknown-version apps are excluded.
 - "What's new" opens the package's release notes URL in the default browser. It is hidden when the package has none.
 - Mockup values are examples only; the defaults are in §4.5.
@@ -180,14 +180,15 @@ The footer has a **Quit** button.
 
 ```
 src/
-  SoftwareUpdateTracker.App/      WinUI 3 tray app (views, view models, tray, windowing)
-  SoftwareUpdateTracker.Core/     models, rules, scheduler, stores
-  SoftwareUpdateTracker.WinGet/   COM adapter, CLI executor, throttling relay, error mapping
-  SoftwareUpdateTracker.Helper/   elevated worker
+  SoftwareUpdateTracker.App/            WinUI 3 tray app (views, tray, windowing, icons)
+  SoftwareUpdateTracker.Presentation/   view models, words, strings (no UI framework)
+  SoftwareUpdateTracker.Core/           models, rules, scheduler, stores, install queue
+  SoftwareUpdateTracker.WinGet/         COM adapter, CLI executor, throttling relay, error mapping
+  SoftwareUpdateTracker.Helper/         elevated worker
 tests/
   SoftwareUpdateTracker.Core.Tests/
   SoftwareUpdateTracker.WinGet.Tests/
-  SoftwareUpdateTracker.App.Tests/      view-model tests
+  SoftwareUpdateTracker.Presentation.Tests/   view-model tests
 installer/SoftwareUpdateTracker.iss
 assets/icon/                    hamster.svg, hamster-small.svg, generated .ico/.png
 scripts/                        icon generation, leftover scan, resource check
@@ -446,8 +447,8 @@ Outcomes (2026-09-25) are recorded in [spikes.md](spikes.md). Two of them change
 1. **Spikes S1–S8**, then the project skeleton, CI and icon assets.
 2. **Core:** models, rules, stores and scheduler (test-first).
 3. **WinGet adapter:** listing, metadata, COM upgrades and error mapping.
-4. **Tray and flyout:** Updates page with manual updates and live progress.
-5. **Choose apps, Settings and History pages.**
+4. **Tray and flyout:** Updates page with manual updates and live progress, and the Choose apps page.
+5. **Settings and History pages.**
 6. **Automation:** auto-update rules, notifications, game, metered and battery gating, and the shortcut.
 7. **Admin:** helper, pipe, batching, silent mode and Close & update.
 8. **Speed limit:** relay and CLI executor.
