@@ -277,6 +277,18 @@ public sealed class UpdatesViewModelTests : IDisposable
     }
 
     [Fact]
+    public void SkippingAFailedUpdate_MovesItToUpToDate_AndOutOfUpdateAll()
+    {
+        Show(Check(AppStatus.Available));
+        _vm.InstallChanged(Done(UpgradeResult.Failed, failure: UpgradeFailure.DiskFull));
+        Assert.True(_vm.CanUpdateAll);
+        Row("Example Editor").SkipCommand.Execute(null);
+        Assert.Equal(RowState.Skipped, Row("Example Editor").View.State);
+        Assert.Contains(Row("Example Editor"), _vm.UpToDate);
+        Assert.False(_vm.CanUpdateAll);
+    }
+
+    [Fact]
     public async Task Skip_MovesTheRowToUpToDate_AndUndoBringsItBack()
     {
         Show(Check(AppStatus.Available));

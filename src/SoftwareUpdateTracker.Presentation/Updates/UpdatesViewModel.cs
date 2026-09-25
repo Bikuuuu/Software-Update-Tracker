@@ -224,6 +224,8 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable
     {
         if (row.Check.App.Offer is not { } offer) return;
         var version = offer.Version;
+        // A failure of the skipped version is no longer anything to retry or update.
+        if (row.Install?.Done is not null) row.Install = null;
         Change(row, app => app with { SkippedVersion = version }, check => check with { App = check.App with { SkippedVersion = version }, Status = AppStatus.Skipped });
         var entry = new HistoryEntry
         {
