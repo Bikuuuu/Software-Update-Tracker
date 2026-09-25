@@ -34,6 +34,10 @@ public enum UpgradeFailure
     NewerInstalled,
     InstallerFailed,
     WinGetUnavailable,
+    // No download progress for two minutes, twice.
+    Stalled,
+    // Still running after 30 minutes.
+    TookTooLong,
     Other,
 }
 
