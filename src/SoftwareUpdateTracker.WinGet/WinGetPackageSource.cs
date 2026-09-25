@@ -46,5 +46,5 @@ public sealed class WinGetPackageSource(Func<CancellationToken, Task<IWinGetQuer
     }
 
     private static PackageSnapshot Snapshot(InstalledPackage p) =>
-        new(p.CatalogId!, WinGetSession.SourceName, p.Name, p.Version, p.UpdateAvailable ? p.LatestVersion : null, p.Publisher, p.ReleaseNotesUrl);
+        new(p.CatalogId!, WinGetSession.SourceName, p.Name, p.Version, p.UpdateAvailable ? p.LatestVersion : null, p.Publisher, p.ReleaseNotesUrl, p.LocalId);
 }

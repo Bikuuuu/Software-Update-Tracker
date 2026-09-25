@@ -129,9 +129,10 @@ public sealed class WinGetSession : IWinGetQueries
         }
         if (!WinGetVersion.IsSupported(version))
             throw new PackageSourceException(CheckProblem.WinGetTooOld, $"winget {version} is older than {WinGetVersion.Minimum}.");
+        var reference = Reference(manager);
         var options = new CreateCompositePackageCatalogOptions { CompositeSearchBehavior = CompositeSearchBehavior.LocalCatalogs };
-        options.Catalogs.Add(Reference(manager));
-        return new WinGetSession(manager, Connect(manager.CreateCompositePackageCatalog(options)), Connect(Reference(manager)), version);
+        options.Catalogs.Add(reference);
+        return new WinGetSession(manager, Connect(manager.CreateCompositePackageCatalog(options)), Connect(reference), version);
     }
 
     private static PackageCatalogReference Reference(PackageManager manager) =>

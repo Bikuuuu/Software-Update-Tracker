@@ -19,9 +19,12 @@ public static partial class ElsewhereHint
         if (SteamGame().IsMatch(package.LocalId)) return UpdatedBy.Steam;
         if (package.LocalId.StartsWith(@"MSIX\", StringComparison.OrdinalIgnoreCase)) return UpdatedBy.MicrosoftStore;
         if (Driver().IsMatch(package.Name)) return UpdatedBy.DriverTool;
-        if (package.Publisher.StartsWith("Microsoft", StringComparison.OrdinalIgnoreCase) && IsWindowsPart(package.Name)) return UpdatedBy.WindowsUpdate;
+        if (IsMicrosoft(package.Publisher) && IsWindowsPart(package.Name)) return UpdatedBy.WindowsUpdate;
         return PackageVersion.Parse(package.Version).IsUnknown ? UpdatedBy.ItSelf : UpdatedBy.Unknown;
     }
+
+    private static bool IsMicrosoft(string publisher) =>
+        publisher.Equals("Microsoft", StringComparison.OrdinalIgnoreCase) || publisher.StartsWith("Microsoft ", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsWindowsPart(string name) =>
         name.StartsWith("Windows ", StringComparison.OrdinalIgnoreCase)
