@@ -3,15 +3,16 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using SoftwareUpdateTracker.App.Icons;
 using Windows.UI;
 
 namespace SoftwareUpdateTracker.App.Controls;
 
-// An app's letter tile.
+// An app's own icon, or a letter tile while it loads or when it has none.
 public sealed partial class AppIcon : Grid
 {
     public static readonly DependencyProperty LocalIdProperty =
-        DependencyProperty.Register(nameof(LocalId), typeof(string), typeof(AppIcon), new PropertyMetadata(""));
+        DependencyProperty.Register(nameof(LocalId), typeof(string), typeof(AppIcon), new PropertyMetadata("", (d, _) => ((AppIcon)d).Load()));
 
     public static readonly DependencyProperty AppNameProperty =
         DependencyProperty.Register(nameof(AppName), typeof(string), typeof(AppIcon), new PropertyMetadata("", (d, _) => ((AppIcon)d).Letter()));
@@ -36,12 +37,19 @@ public sealed partial class AppIcon : Grid
         FontWeight = FontWeights.SemiBold,
         Foreground = new SolidColorBrush(Colors.White),
     };
+    private readonly Image _image = new();
+    private int _loads;
 
     public AppIcon()
     {
         _tile.Child = _letter;
         Children.Add(_tile);
-        SizeChanged += (_, _) => _letter.FontSize = Math.Max(9, ActualHeight * 0.5);
+        Children.Add(_image);
+        SizeChanged += (_, _) =>
+        {
+            _letter.FontSize = Math.Max(9, ActualHeight * 0.5);
+            Load();
+        };
     }
 
     public string LocalId
@@ -62,5 +70,18 @@ public sealed partial class AppIcon : Grid
         _letter.Text = name.Length > 0 ? char.ToUpperInvariant(name[0]).ToString() : "";
         var hash = name.Aggregate(0, (sum, c) => unchecked(sum * 31 + c));
         _tile.Background = new SolidColorBrush(Tiles[(hash & int.MaxValue) % Tiles.Length]);
+    }
+
+    private async void Load()
+    {
+        var load = ++_loads;
+        _image.Source = null;
+        _tile.Visibility = Visibility.Visible;
+        if (string.IsNullOrEmpty(LocalId) || ActualWidth <= 0 || XamlRoot is null) return;
+        var pixels = (int)Math.Ceiling(ActualWidth * XamlRoot.RasterizationScale);
+        var icon = await IconLoader.GetAsync(LocalId, pixels);
+        if (load != _loads || icon is null) return;
+        _image.Source = icon;
+        _tile.Visibility = Visibility.Collapsed;
     }
 }

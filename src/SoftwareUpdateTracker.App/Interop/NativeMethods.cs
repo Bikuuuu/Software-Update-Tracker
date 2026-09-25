@@ -112,4 +112,37 @@ internal static class NativeMethods
     [DllImport("user32.dll")] public static extern bool GetMonitorInfoW(nint monitor, ref MONITORINFO info);
     [DllImport("shcore.dll")] public static extern int GetDpiForMonitor(nint monitor, int dpiType, out uint dpiX, out uint dpiY);
     [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ICONINFO
+    {
+        public bool fIcon;
+        public int xHotspot;
+        public int yHotspot;
+        public nint hbmMask;
+        public nint hbmColor;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern uint PrivateExtractIconsW(string file, int index, int cx, int cy, out nint icon, out uint id, uint count, uint flags);
+    [DllImport("user32.dll")] public static extern bool GetIconInfo(nint icon, out ICONINFO info);
+    [DllImport("user32.dll")] public static extern nint GetDC(nint hwnd);
+    [DllImport("user32.dll")] public static extern int ReleaseDC(nint hwnd, nint dc);
+    [DllImport("gdi32.dll")] public static extern int GetDIBits(nint dc, nint bitmap, uint start, uint lines, [Out] byte[] bits, ref BITMAPINFOHEADER info, uint usage);
+    [DllImport("gdi32.dll")] public static extern bool DeleteObject(nint handle);
 }
