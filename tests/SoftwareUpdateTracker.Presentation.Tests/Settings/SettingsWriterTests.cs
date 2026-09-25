@@ -29,19 +29,23 @@ public sealed class SettingsWriterTests : IDisposable
     public async Task Changes_AreSavedInOrder_OffTheCallersThread()
     {
         var caller = Environment.CurrentManagedThreadId;
-        var threads = new List<int>();
+        var insideUpdate = false;
+        var ranInline = false;
         for (var i = 1; i <= 20; i++)
         {
             var hours = i % 2 == 0 ? 12 : 24;
+            Volatile.Write(ref insideUpdate, true);
             _writer.Update(file =>
             {
-                lock (threads) threads.Add(Environment.CurrentManagedThreadId);
+                // The test's own pool thread may run later saves once it awaits; only an inline save sees it inside Update.
+                if (Environment.CurrentManagedThreadId == caller && Volatile.Read(ref insideUpdate)) ranInline = true;
                 return file with { Settings = file.Settings with { CheckIntervalHours = hours } };
             });
+            Volatile.Write(ref insideUpdate, false);
         }
         await _writer.Idle.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         Assert.Equal(12, _store.Current.Settings.CheckIntervalHours);
-        Assert.DoesNotContain(caller, threads);
+        Assert.False(ranInline);
     }
 
     [Fact]
