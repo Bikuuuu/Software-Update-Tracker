@@ -48,6 +48,8 @@ public sealed partial class UpdatesPage : FlyoutPage
         else _spin.Stop();
     }
 
+    private void OnHistory(object sender, RoutedEventArgs e) => Go(typeof(HistoryPage));
+
     private void OnSettings(object sender, RoutedEventArgs e) => Go(typeof(SettingsPage));
 
     private void OnChooseApps(object sender, RoutedEventArgs e) => Go(typeof(ChooseAppsPage));

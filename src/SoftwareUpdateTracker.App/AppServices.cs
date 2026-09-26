@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using SoftwareUpdateTracker.App.Interop;
 using SoftwareUpdateTracker.Core;
@@ -38,6 +39,7 @@ public sealed class AppServices : IDisposable
         var settingsRecovered = Settings.Load();
         History = new HistoryStore(Paths.History, time);
         var historyRecovered = History.Load();
+        if (demo) foreach (var entry in DemoWinGet.History(time.GetUtcNow())) History.Add(entry);
         Version = typeof(AppServices).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
         // raw.githubusercontent.com asks clients to say who they are.
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SoftwareUpdateTracker", Version));
@@ -73,7 +75,13 @@ public sealed class AppServices : IDisposable
         Startup = new StartupEntry(demo ? new DemoStartupValues() : new RegistryStartupValues(), Environment.ProcessPath!);
         SettingsView = new SettingsViewModel(Settings, _writer, Scheduler, Startup, new Desktop(openLink, demo, Log), time, Log, post,
             () => (Updates.LastCheckAt, Updates.LastProblem, Updates.LastGoodCheckAt), Version, Path.GetDirectoryName(Paths.Log)!);
+        HistoryView = new HistoryViewModel(History, _historyWriter, Updates, time, () => CultureInfo.CurrentCulture);
         _inbox = new UiInbox(post, Log);
+        History.Changed += (_, _) => _inbox.Deliver(() =>
+        {
+            HistoryView.Changed();
+            Updates.FilesChanged();
+        });
         Scheduler.CheckDue += _inbox.For<CheckTicket>(_ => Updates.CheckStarted());
         Runner.Completed += _inbox.For<CheckCompleted>(Updates.CheckFinished);
         Queue.Changed += _inbox.For<InstallItem>(Updates.InstallChanged);
@@ -95,6 +103,7 @@ public sealed class AppServices : IDisposable
     public ChooseAppsViewModel Choose { get; }
     public StartupEntry Startup { get; }
     public SettingsViewModel SettingsView { get; }
+    public HistoryViewModel HistoryView { get; }
 
     // A download stops; an installer that already started finishes on its own.
     public void Dispose()

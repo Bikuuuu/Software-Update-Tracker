@@ -131,7 +131,7 @@ public sealed partial class FlyoutWindow : Window
     }
 
     // For --self-check: loads and shows every page out of sight, and names the ones that loaded.
-    // It waits for Choose apps to list apps (or to fail), and in the demo for update rows too, so the row templates are built.
+    // It waits for Choose apps to list apps (or to fail), and in the demo for update and history rows too, so the row templates are built.
     public async Task<IReadOnlyList<string>> LoadEveryPageAsync()
     {
         var loaded = new List<string>();
@@ -140,7 +140,7 @@ public sealed partial class FlyoutWindow : Window
         Root.Visibility = Visibility.Visible;
         AppWindow.Show(false);
         if (services.Demo) services.Updates.CheckNowCommand.Execute(null);
-        foreach (var type in new[] { typeof(UpdatesPage), typeof(ChooseAppsPage), typeof(SettingsPage) })
+        foreach (var type in new[] { typeof(UpdatesPage), typeof(ChooseAppsPage), typeof(SettingsPage), typeof(HistoryPage) })
         {
             if (Pages.CurrentSourcePageType != type) Pages.Navigate(type, services, new SuppressNavigationTransitionInfo());
             if (Pages.Content is not FlyoutPage page) continue;
@@ -153,6 +153,7 @@ public sealed partial class FlyoutWindow : Window
             page.SetVisible(true);
             if (services.Demo && type == typeof(UpdatesPage)) await Until(() => services.Updates.Updates.Count > 0 && services.Updates.UpToDate.Count > 0);
             if (type == typeof(ChooseAppsPage)) await Until(() => services.Choose.Apps.Count > 0 || services.Choose.Problem is not null);
+            if (services.Demo && type == typeof(HistoryPage)) await Until(() => services.HistoryView.Groups.Count > 0);
             loaded.Add(type.Name);
             page.SetVisible(false);
         }
