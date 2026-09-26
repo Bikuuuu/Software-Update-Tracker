@@ -297,19 +297,20 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task BrieflyLockedFile_IsSavedAfterARetry()
+    public void BrieflyLockedFile_IsSavedAfterARetry()
     {
-        var ct = TestContext.Current.CancellationToken;
         var store = new SettingsStore(SettingsPath);
         store.Update(f => f with { Settings = new AppSettings() });
         var held = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
-        var release = Task.Run(async () =>
+        // Its own thread: parallel tests can keep every pool thread busy past the rename retries.
+        var release = new Thread(() =>
         {
-            await Task.Delay(150, ct);
-            await held.DisposeAsync();
-        }, ct);
+            Thread.Sleep(150);
+            held.Dispose();
+        });
+        release.Start();
         store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
-        await release;
+        release.Join();
         Assert.Equal("A", Assert.Single(Loaded(out _).Current.Apps).Id);
     }
 
