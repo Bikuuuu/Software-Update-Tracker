@@ -5,6 +5,6 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SoftwareUpdateTracker.WinGet\SoftwareUpdateTracker.WinGet.csproj" />
+    <ProjectReference Include="..\..\src\TinyTracker.WinGet\TinyTracker.WinGet.csproj" />
   </ItemGroup>
 </Project>

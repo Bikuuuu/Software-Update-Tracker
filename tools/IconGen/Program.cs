@@ -64,6 +64,6 @@ static byte[] Png(SKBitmap bitmap)
 static string FindRepoRoot()
 {
     var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
-    while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "SoftwareUpdateTracker.slnx"))) dir = dir.Parent;
+    while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "TinyTracker.slnx"))) dir = dir.Parent;
     return dir?.FullName ?? throw new DirectoryNotFoundException("Run from inside the repository.");
 }

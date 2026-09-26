@@ -13,9 +13,9 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-      - run: dotnet restore SoftwareUpdateTracker.slnx
-      - run: dotnet build SoftwareUpdateTracker.slnx -c Release --no-restore
-      - run: dotnet test SoftwareUpdateTracker.slnx -c Release --no-build
+      - run: dotnet restore TinyTracker.slnx
+      - run: dotnet build TinyTracker.slnx -c Release --no-restore
+      - run: dotnet test TinyTracker.slnx -c Release --no-build
   winget:
     runs-on: windows-2025
     timeout-minutes: 30
@@ -41,4 +41,4 @@ jobs:
           winget install --id VideoLAN.VLC --version 3.0.20 --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: winget tests
-        run: dotnet test --project tests/SoftwareUpdateTracker.WinGet.Tests -c Release --fail-skips on
+        run: dotnet test --project tests/TinyTracker.WinGet.Tests -c Release --fail-skips on
