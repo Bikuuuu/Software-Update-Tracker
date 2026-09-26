@@ -1,6 +1,6 @@
 param(
     [int]$Minutes = 30,
-    [string]$ProcessName = 'SoftwareUpdateTracker',
+    [string]$ProcessName = 'TinyTracker',
     [double]$CpuBudgetPercent = 0.1,
     [double]$MemoryBudgetMB = 40
 )

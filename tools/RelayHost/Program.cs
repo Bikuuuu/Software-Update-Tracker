@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using SoftwareUpdateTracker.WinGet.Throttling;
+using TinyTracker.WinGet.Throttling;
 
 if (args.Length < 2)
 {
