@@ -13,7 +13,7 @@ namespace SoftwareUpdateTracker.Presentation.Tests.Settings;
 
 public sealed class SettingsViewModelTests : IAsyncDisposable
 {
-    private const string Exe = @"C:\Program Files\Software Update Tracker\SoftwareUpdateTracker.exe";
+    private const string Exe = @"C:\Program Files\Tiny Tracker\TinyTracker.exe";
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(10);
 
     private readonly TempFolder _folder = new();
@@ -281,7 +281,7 @@ public sealed class SettingsViewModelTests : IAsyncDisposable
         await Until(() => !_vm.IsCopying);
         Assert.Equal("Copied to the clipboard", _vm.CopyText);
         var text = Assert.Single(_desktop.Copied);
-        Assert.Contains("Software Update Tracker 0.1.0", text);
+        Assert.Contains("Tiny Tracker 0.1.0", text);
         Assert.Contains("winget 1.29.380", text);
         Assert.Contains("Tracked apps: 2", text);
         _time.Advance(SettingsViewModel.FeedbackShownFor);

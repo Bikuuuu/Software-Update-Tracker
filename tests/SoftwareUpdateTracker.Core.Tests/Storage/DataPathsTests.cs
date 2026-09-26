@@ -9,7 +9,7 @@ public class DataPathsTests
     public void CurrentUser_LivesInRoamingAppData()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        Assert.Equal(Path.Combine(appData, "Software Update Tracker"), DataPaths.ForCurrentUser().Root);
+        Assert.Equal(Path.Combine(appData, "Tiny Tracker"), DataPaths.ForCurrentUser().Root);
     }
 
     [Fact]

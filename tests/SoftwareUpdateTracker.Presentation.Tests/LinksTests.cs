@@ -5,7 +5,7 @@ namespace SoftwareUpdateTracker.Presentation.Tests;
 public class LinksTests
 {
     [Theory]
-    [InlineData("https://github.com/Bikuuuu/Software-Update-Tracker", "https://github.com/Bikuuuu/Software-Update-Tracker")]
+    [InlineData("https://github.com/Bikuuuu/Tiny-Tracker-Software-Update-Tracker", "https://github.com/Bikuuuu/Tiny-Tracker-Software-Update-Tracker")]
     [InlineData(" http://example.com/notes ", "http://example.com/notes")]
     [InlineData(Notice.AppInstallerStoreLink, Notice.AppInstallerStoreLink)]
     public void WebLinksAndTheStorePage_Open(string url, string opened) => Assert.Equal(opened, Links.Openable(url));

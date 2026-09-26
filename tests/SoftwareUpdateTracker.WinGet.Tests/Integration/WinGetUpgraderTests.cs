@@ -22,7 +22,7 @@ public class WinGetUpgraderTests
 
     private static void RunnerOnly() =>
         Assert.SkipUnless(
-            Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" && Environment.GetEnvironmentVariable("SUT_WINGET_UPGRADE_TESTS") == "1",
+            Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" && Environment.GetEnvironmentVariable("TINYTRACKER_WINGET_UPGRADE_TESTS") == "1",
             "Upgrade tests run only on GitHub runners.");
 
     private static async Task<InstalledPackage> InstalledAsync(string id)

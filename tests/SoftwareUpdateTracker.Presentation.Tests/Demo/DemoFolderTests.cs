@@ -12,10 +12,10 @@ public sealed class DemoFolderTests : IDisposable
     [Fact]
     public void Create_RemovesFoldersLeftByEarlierDemos_AndCreatesNothing()
     {
-        Directory.CreateDirectory(_temp.PathOf("sut-demo-left"));
+        Directory.CreateDirectory(_temp.PathOf("tinytracker-demo-left"));
         Directory.CreateDirectory(_temp.PathOf("unrelated"));
         var folder = DemoFolder.Create(_temp.Root);
-        Assert.StartsWith(_temp.PathOf("sut-demo-"), folder);
+        Assert.StartsWith(_temp.PathOf("tinytracker-demo-"), folder);
         Assert.False(Directory.Exists(folder));
         Assert.Equal(["unrelated"], Directory.GetDirectories(_temp.Root).Select(Path.GetFileName));
     }
@@ -23,7 +23,7 @@ public sealed class DemoFolderTests : IDisposable
     [Fact]
     public void Delete_RetriesWhileAFileIsStillOpen()
     {
-        var folder = _temp.PathOf("sut-demo-run");
+        var folder = _temp.PathOf("tinytracker-demo-run");
         Directory.CreateDirectory(folder);
         var held = new FileStream(Path.Combine(folder, "app.log"), FileMode.Create, FileAccess.Write, FileShare.None);
         var sleeps = 0;
@@ -39,7 +39,7 @@ public sealed class DemoFolderTests : IDisposable
     [Fact]
     public void Delete_GivesUpQuietly_WhenTheFileStaysOpen()
     {
-        var folder = _temp.PathOf("sut-demo-run");
+        var folder = _temp.PathOf("tinytracker-demo-run");
         Directory.CreateDirectory(folder);
         using var held = new FileStream(Path.Combine(folder, "app.log"), FileMode.Create, FileAccess.Write, FileShare.None);
         Assert.False(DemoFolder.Delete(folder, _ => { }));
@@ -47,5 +47,5 @@ public sealed class DemoFolderTests : IDisposable
     }
 
     [Fact]
-    public void Delete_OfAMissingFolder_Succeeds() => Assert.True(DemoFolder.Delete(_temp.PathOf("sut-demo-gone")));
+    public void Delete_OfAMissingFolder_Succeeds() => Assert.True(DemoFolder.Delete(_temp.PathOf("tinytracker-demo-gone")));
 }

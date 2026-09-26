@@ -137,7 +137,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Image x:Name="Logo" Width="22" Height="22" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="Software Update Tracker" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="Tiny Tracker" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
                 <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{x:Bind Updates.Summary, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                     <Button Style="{StaticResource IconButton}" Command="{x:Bind Updates.CheckNowCommand}"

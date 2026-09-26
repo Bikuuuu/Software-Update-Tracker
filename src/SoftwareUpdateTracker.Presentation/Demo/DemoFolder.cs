@@ -3,7 +3,7 @@ namespace SoftwareUpdateTracker.Presentation.Demo;
 // A fresh data folder per demo run, deleted on Quit. Folders left by a demo that crashed go at the next start.
 public static class DemoFolder
 {
-    private const string Prefix = "sut-demo-";
+    private const string Prefix = "tinytracker-demo-";
     private const int Attempts = 10;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(50);
 

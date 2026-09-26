@@ -42,7 +42,7 @@ public sealed class AppServices : IDisposable
         if (demo) foreach (var entry in DemoWinGet.History(time.GetUtcNow())) History.Add(entry);
         Version = typeof(AppServices).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
         // raw.githubusercontent.com asks clients to say who they are.
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SoftwareUpdateTracker", Version));
+        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("TinyTracker", Version));
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue($"(+{AppInfo.RepositoryUrl})"));
 
         IPackageSource source;

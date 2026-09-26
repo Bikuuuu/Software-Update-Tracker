@@ -83,7 +83,7 @@ public sealed class UpdatesViewModelTests : IAsyncDisposable
         _vm.TrackedAppsChanged(added: false);
         Assert.True(_vm.IsEmpty);
         Assert.Equal("", _vm.Summary);
-        Assert.Equal("Software Update Tracker: No apps chosen", _vm.Tray.Tooltip);
+        Assert.Equal("Tiny Tracker: No apps chosen", _vm.Tray.Tooltip);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class UpdatesViewModelTests : IAsyncDisposable
     {
         Assert.False(_vm.IsEmpty);
         Assert.Equal("Not checked yet", _vm.Summary);
-        Assert.Equal(new TrayState(TrayIconKind.Idle, "Software Update Tracker: Not checked yet"), _vm.Tray);
+        Assert.Equal(new TrayState(TrayIconKind.Idle, "Tiny Tracker: Not checked yet"), _vm.Tray);
         _vm.CheckStarted();
         Assert.Equal(("Checking for updates…", "Checking for updates…"), (_vm.Summary, _vm.NextCheck));
         Assert.Empty(_vm.Updates);
@@ -583,13 +583,13 @@ public sealed class UpdatesViewModelTests : IAsyncDisposable
     {
         Show(Check(AppStatus.Available));
         _vm.InstallChanged(Item(InstallStage.Downloading, progress: Downloading(180 * MB, 400 * MB)));
-        Assert.Equal(new TrayState(TrayIconKind.Working, "Software Update Tracker: Installing Example Editor (45%)"), _vm.Tray);
+        Assert.Equal(new TrayState(TrayIconKind.Working, "Tiny Tracker: Installing Example Editor (45%)"), _vm.Tray);
         _vm.InstallChanged(Done(UpgradeResult.Failed, failure: UpgradeFailure.Other));
-        Assert.Equal(new TrayState(TrayIconKind.Badge, "Software Update Tracker: 1 update ready"), _vm.Tray);
+        Assert.Equal(new TrayState(TrayIconKind.Badge, "Tiny Tracker: 1 update ready"), _vm.Tray);
         Show(Check(AppStatus.UpToDate, installed: "2.5.0", offer: null));
-        Assert.Equal(new TrayState(TrayIconKind.Idle, "Software Update Tracker: Up to date"), _vm.Tray);
+        Assert.Equal(new TrayState(TrayIconKind.Idle, "Tiny Tracker: Up to date"), _vm.Tray);
         _vm.CheckStarted();
-        Assert.Equal(new TrayState(TrayIconKind.Working, "Software Update Tracker: Checking for updates"), _vm.Tray);
+        Assert.Equal(new TrayState(TrayIconKind.Working, "Tiny Tracker: Checking for updates"), _vm.Tray);
     }
 
     [Fact]

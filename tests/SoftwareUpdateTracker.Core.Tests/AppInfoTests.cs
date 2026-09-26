@@ -5,8 +5,11 @@ namespace SoftwareUpdateTracker.Core.Tests;
 public class AppInfoTests
 {
     [Fact]
-    public void Name_IsTheProductName() => Assert.Equal("Software Update Tracker", AppInfo.Name);
+    public void Name_IsTheProductName() => Assert.Equal("Tiny Tracker", AppInfo.Name);
 
     [Fact]
-    public void InstanceKey_HasNoSpaces() => Assert.Equal("SoftwareUpdateTracker", AppInfo.InstanceKey);
+    public void InstanceKey_HasNoSpaces() => Assert.Equal("TinyTracker", AppInfo.InstanceKey);
+
+    [Fact]
+    public void RepositoryUrl_IsTheRenamedRepo() => Assert.Equal("https://github.com/Bikuuuu/Tiny-Tracker-Software-Update-Tracker", AppInfo.RepositoryUrl);
 }

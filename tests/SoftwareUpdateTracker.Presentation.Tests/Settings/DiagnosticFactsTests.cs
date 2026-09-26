@@ -16,7 +16,7 @@ public class DiagnosticFactsTests
     public void Text_HoldsVersionsCountsAndSettings()
     {
         var expected = """
-            Software Update Tracker 0.1.0
+            Tiny Tracker 0.1.0
             Windows 10.0.22631.0 X64
             .NET 10.0.1
             winget 1.29.380

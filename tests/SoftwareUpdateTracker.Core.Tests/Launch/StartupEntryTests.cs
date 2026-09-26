@@ -5,9 +5,9 @@ namespace SoftwareUpdateTracker.Core.Tests.Launch;
 
 public class StartupEntryTests
 {
-    private const string Exe = @"C:\Program Files\Software Update Tracker\SoftwareUpdateTracker.exe";
+    private const string Exe = @"C:\Program Files\Tiny Tracker\TinyTracker.exe";
     private const string Ours = "\"" + Exe + "\" --startup";
-    private const string OtherCopy = @"""D:\Tools\SoftwareUpdateTracker.exe"" --startup";
+    private const string OtherCopy = @"""D:\Tools\TinyTracker.exe"" --startup";
 
     private readonly FakeStartupValues _values = new();
     private readonly StartupEntry _entry;
@@ -33,7 +33,7 @@ public class StartupEntryTests
 
     [Theory]
     [InlineData(Ours)]
-    [InlineData(@"""c:\program files\software update tracker\softwareupdatetracker.exe"" --startup")]
+    [InlineData(@"""c:\program files\tiny tracker\tinytracker.exe"" --startup")]
     [InlineData("  " + Ours + "  ")]
     public void OurValue_IsOn(string run)
     {
@@ -45,7 +45,7 @@ public class StartupEntryTests
     [InlineData(OtherCopy)]
     [InlineData("\"" + Exe + "\"")]
     [InlineData("\"" + Exe + "\" --startup --demo")]
-    [InlineData("SoftwareUpdateTracker.exe --startup")]
+    [InlineData("TinyTracker.exe --startup")]
     public void AnyOtherValue_IsOff(string run)
     {
         _values.Run = run;

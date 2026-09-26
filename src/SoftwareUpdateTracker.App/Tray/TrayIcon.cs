@@ -7,7 +7,7 @@ namespace SoftwareUpdateTracker.App.Tray;
 internal sealed class TrayIcon : IDisposable
 {
     private const uint CallbackMessage = NativeMethods.WM_APP + 1;
-    private const string ClassName = "SoftwareUpdateTracker.Tray";
+    private const string ClassName = "TinyTracker.Tray";
     private static readonly TimeSpan FrameTime = TimeSpan.FromMilliseconds(120);
     private static NativeMethods.WndProc? s_wndProc;
 
