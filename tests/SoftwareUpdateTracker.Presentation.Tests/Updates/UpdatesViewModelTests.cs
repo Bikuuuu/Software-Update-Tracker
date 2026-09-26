@@ -117,7 +117,7 @@ public sealed class UpdatesViewModelTests : IAsyncDisposable
     [Fact]
     public void Summary_CountsUpdates_AndSaysWhenChecked()
     {
-        _vm.Opened();
+        _vm.Shown();
         Show(Check(AppStatus.Available), Check(AppStatus.Available, "Example.Paint"));
         Assert.Equal("2 updates ready · checked just now", _vm.Summary);
         Pass(TimeSpan.FromMinutes(2));
@@ -150,19 +150,21 @@ public sealed class UpdatesViewModelTests : IAsyncDisposable
         Show(Check(AppStatus.Available));
         _time.Advance(TimeSpan.FromMinutes(2));
         Assert.Equal(0, _ui.Pump());
-        _vm.Opened();
+        _vm.Shown();
         Assert.Equal("1 update ready · checked 2 min ago", _vm.Summary);
         Pass(TimeSpan.FromMinutes(1));
         Assert.Equal("1 update ready · checked 3 min ago", _vm.Summary);
-        _vm.Closed();
+        _vm.Hidden();
         _time.Advance(TimeSpan.FromMinutes(5));
         Assert.Equal(0, _ui.Pump());
     }
 
     [Fact]
-    public void Opening_AsksForAStaleCheck()
+    public void OpeningTheFlyout_AsksForAStaleCheck_ShowingThePageDoesNot()
     {
-        _vm.Opened();
+        _vm.Shown();
+        Assert.Equal(0, _checksDue);
+        _vm.FlyoutOpened();
         Assert.Equal(1, _checksDue);
     }
 
@@ -171,11 +173,11 @@ public sealed class UpdatesViewModelTests : IAsyncDisposable
     {
         _vm.CheckStarted();
         Assert.False(_vm.IsSpinning);
-        _vm.Opened();
+        _vm.Shown();
         Assert.True(_vm.IsSpinning);
-        _vm.Closed();
+        _vm.Hidden();
         Assert.False(_vm.IsSpinning);
-        _vm.Opened();
+        _vm.Shown();
         Show(Check(AppStatus.Available));
         Assert.False(_vm.IsSpinning);
     }

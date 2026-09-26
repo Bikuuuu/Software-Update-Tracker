@@ -53,6 +53,7 @@ public sealed partial class FlyoutWindow : Window
         };
         Root.KeyboardAccelerators.Add(escape);
         Pages.Navigated += (_, e) => Attach(e.Content as FlyoutPage);
+        FlyoutPage.FlyoutOpen = () => _toggle.IsOpen;
     }
 
     public bool IsOpen => _toggle.IsOpen;
@@ -96,6 +97,9 @@ public sealed partial class FlyoutWindow : Window
             Pages.Navigate(page, _services, _toggle.IsOpen ? new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromRight } : new SuppressNavigationTransitionInfo());
         if (_toggle.IsOpen) return;
         _toggle.Opened();
+        _services?.Updates.FlyoutOpened();
+        // Before layout, so the first frame is sized to fresh content.
+        _page?.SetVisible(true);
         Root.Visibility = Visibility.Visible;
         Root.Opacity = 0;
         Root.UpdateLayout();
@@ -103,7 +107,6 @@ public sealed partial class FlyoutWindow : Window
         AppWindow.Show(true);
         // WinUI windows refuse WS_EX_TOPMOST; the flyout relies on foreground activation instead.
         NativeMethods.SetForegroundWindow(_hwnd);
-        _services?.Updates.Opened();
         OpenChanged?.Invoke(this, EventArgs.Empty);
         // Uncloak one frame later so the first frame is already rendered.
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
@@ -117,7 +120,7 @@ public sealed partial class FlyoutWindow : Window
     {
         if (!_toggle.IsOpen) return;
         _toggle.Closed();
-        _services?.Updates.Closed();
+        _page?.SetVisible(false);
         Dwm.SetCloaked(_hwnd, true);
         AppWindow.Hide();
         // The next open starts on Updates. Leaving Choose apps this way still checks the apps it added.
@@ -127,7 +130,7 @@ public sealed partial class FlyoutWindow : Window
         OpenChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    // For --self-check: loads every page out of sight and names the ones that loaded.
+    // For --self-check: loads and shows every page out of sight, and names the ones that loaded.
     // It waits for Choose apps to list apps (or to fail), and in the demo for update rows too, so the row templates are built.
     public async Task<IReadOnlyList<string>> LoadEveryPageAsync()
     {
@@ -147,9 +150,11 @@ public sealed partial class FlyoutWindow : Window
                 page.Loaded += (_, _) => ready.TrySetResult();
                 await ready.Task.WaitAsync(TimeSpan.FromSeconds(10));
             }
+            page.SetVisible(true);
             if (services.Demo && type == typeof(UpdatesPage)) await Until(() => services.Updates.Updates.Count > 0 && services.Updates.UpToDate.Count > 0);
             if (type == typeof(ChooseAppsPage)) await Until(() => services.Choose.Apps.Count > 0 || services.Choose.Problem is not null);
             loaded.Add(type.Name);
+            page.SetVisible(false);
         }
         while (Pages.CanGoBack) Pages.GoBack(new SuppressNavigationTransitionInfo());
         AppWindow.Hide();

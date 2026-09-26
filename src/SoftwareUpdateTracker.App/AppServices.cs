@@ -1,8 +1,10 @@
 using System.Net.Http.Headers;
+using SoftwareUpdateTracker.App.Interop;
 using SoftwareUpdateTracker.Core;
 using SoftwareUpdateTracker.Core.Checking;
 using SoftwareUpdateTracker.Core.Installing;
 using SoftwareUpdateTracker.Core.Inventory;
+using SoftwareUpdateTracker.Core.Launch;
 using SoftwareUpdateTracker.Core.Logging;
 using SoftwareUpdateTracker.Core.Scheduling;
 using SoftwareUpdateTracker.Core.Storage;
@@ -67,6 +69,10 @@ public sealed class AppServices : IDisposable
         _historyWriter = new HistoryWriter(History, Log, post);
         Updates = new UpdatesViewModel(Scheduler, Queue, Settings, _writer, History, _historyWriter, time, post, openLink);
         Choose = new ChooseAppsViewModel(inventory, Settings, _writer, Log, post);
+        // The demo never touches the registry.
+        Startup = new StartupEntry(demo ? new DemoStartupValues() : new RegistryStartupValues(), Environment.ProcessPath!);
+        SettingsView = new SettingsViewModel(Settings, _writer, Scheduler, Startup, new Desktop(openLink, demo, Log), time, Log, post,
+            () => (Updates.LastCheckAt, Updates.LastProblem, Updates.LastGoodCheckAt), Version, Path.GetDirectoryName(Paths.Log)!);
         _inbox = new UiInbox(post, Log);
         Scheduler.CheckDue += _inbox.For<CheckTicket>(_ => Updates.CheckStarted());
         Runner.Completed += _inbox.For<CheckCompleted>(Updates.CheckFinished);
@@ -87,6 +93,8 @@ public sealed class AppServices : IDisposable
     public InstallQueue Queue { get; }
     public UpdatesViewModel Updates { get; }
     public ChooseAppsViewModel Choose { get; }
+    public StartupEntry Startup { get; }
+    public SettingsViewModel SettingsView { get; }
 
     // A download stops; an installer that already started finishes on its own.
     public void Dispose()
@@ -96,6 +104,7 @@ public sealed class AppServices : IDisposable
         Runner.Dispose();
         Scheduler.Dispose();
         Updates.Dispose();
+        SettingsView.Dispose();
         _http.Dispose();
         // Changes made just before Quit still land; in the demo, a late save would bring the folder back.
         Task.WhenAll(_writer.Idle, _historyWriter.Idle, Queue.Stopped).Wait(TimeSpan.FromSeconds(2));

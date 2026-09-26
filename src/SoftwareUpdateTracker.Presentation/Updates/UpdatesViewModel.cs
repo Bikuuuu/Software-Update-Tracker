@@ -36,7 +36,7 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable, IH
     private readonly Dictionary<string, UpdateRow> _rows = new(StringComparer.OrdinalIgnoreCase);
     private DateTimeOffset? _checkedAt;
     private bool _checking;
-    private bool _open;
+    private bool _shown;
     private bool _checkAgain;
     private bool _expandedByUser;
     private ITimer? _tick;
@@ -138,17 +138,20 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable, IH
         RefreshFileNotices();
     }
 
-    public void Opened()
+    // Opening the flyout, on any page, refreshes data older than 15 minutes.
+    public void FlyoutOpened() => _scheduler.FlyoutOpened();
+
+    // The page's times and refresh icon move only while it shows.
+    public void Shown()
     {
-        _open = true;
-        _scheduler.FlyoutOpened();
+        _shown = true;
         _tick ??= _time.CreateTimer(_ => _post(Refresh), null, TickEvery, TickEvery);
         Refresh();
     }
 
-    public void Closed()
+    public void Hidden()
     {
-        _open = false;
+        _shown = false;
         _tick?.Dispose();
         _tick = null;
         Refresh();
@@ -445,7 +448,7 @@ public sealed partial class UpdatesViewModel : ObservableObject, IDisposable, IH
         var forAll = rows.Count(r => !r.IsRemoved && r.View.CountsForUpdateAll);
         IsEmpty = _settings.Current.Apps.Count == 0 && _rows.Count == 0;
         IsChecking = _checking;
-        IsSpinning = _open && _checking;
+        IsSpinning = _shown && _checking;
         HasUpdates = Updates.Count > 0;
         HasUpToDate = UpToDate.Count > 0;
         UpToDateText = Words.UpToDate(UpToDate.Count);
