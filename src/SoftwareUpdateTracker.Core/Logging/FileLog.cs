@@ -10,6 +10,7 @@ public sealed class FileLog(string path, TimeProvider time, long maxBytes = File
 
     private readonly Lock _gate = new();
     private readonly string _older = Path.ChangeExtension(path, ".1.log");
+    private bool _closed;
 
     public void Info(string message) => Write("INFO", message);
 
@@ -17,12 +18,19 @@ public sealed class FileLog(string path, TimeProvider time, long maxBytes = File
 
     public void Error(string message, Exception? error = null) => Write("ERROR", error is null ? message : $"{message}: {error}");
 
+    // Later lines are dropped, so the log's folder can be deleted.
+    public void Close()
+    {
+        lock (_gate) _closed = true;
+    }
+
     private void Write(string level, string message)
     {
         var stamp = time.GetUtcNow().UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
         var line = $"{stamp} {level} {message}{Environment.NewLine}";
         lock (_gate)
         {
+            if (_closed) return;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);

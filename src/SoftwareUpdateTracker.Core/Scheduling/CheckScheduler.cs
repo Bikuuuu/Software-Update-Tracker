@@ -48,6 +48,11 @@ public sealed class CheckScheduler : IDisposable
 
     public event EventHandler<CheckTicket>? CheckDue;
 
+    public TimeSpan Interval
+    {
+        get { lock (_gate) return _interval; }
+    }
+
     // Null while a check runs, and while offline or Battery saver holds checks back.
     public DateTimeOffset? NextCheck
     {

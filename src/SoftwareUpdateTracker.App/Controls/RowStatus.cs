@@ -5,15 +5,14 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Documents;
 using SoftwareUpdateTracker.Presentation;
-using SoftwareUpdateTracker.Presentation.Updates;
 using Windows.Foundation;
 
 namespace SoftwareUpdateTracker.App.Controls;
 
-// Fills a row's status line: the words, then "Details" or "What's new" as a link, wrapping as one text.
+// Fills a status line: the words, then "Details" or "What's new" as a link, wrapping as one text.
 public static class RowStatus
 {
-    // Typed object: XAML can't build RowView's type info, as its members are required.
+    // Typed object: XAML can't build RowView's type info, as its members are required. Anything else than an IStatusLine shows nothing.
     public static readonly DependencyProperty ViewProperty = DependencyProperty.RegisterAttached(
         "View", typeof(object), typeof(RowStatus), new PropertyMetadata(null, (d, _) => Fill((TextBlock)d)));
 
@@ -31,9 +30,9 @@ public static class RowStatus
     private static void Fill(TextBlock text)
     {
         text.Inlines.Clear();
-        if (GetView(text) is not RowView view) return;
+        if (GetView(text) is not IStatusLine view) return;
         text.Inlines.Add(new Run { Text = view.Status });
-        var link = view.HasDetails ? Strings.Details : view.ShowNotes ? Strings.WhatsNew : null;
+        var link = view.Details is not null ? Strings.Details : view.ShowNotes ? Strings.WhatsNew : null;
         if (link is null) return;
         // The dot stays with the words before it.
         if (view.Status.Length > 0) text.Inlines.Add(new Run { Text = "\u00a0· " });
@@ -45,7 +44,7 @@ public static class RowStatus
 
     private static void Open(TextBlock text, Hyperlink link)
     {
-        if (GetView(text) is not RowView view) return;
+        if (GetView(text) is not IStatusLine view) return;
         if (view.Details is not { } details)
         {
             GetNotes(text)?.Execute(null);

@@ -22,6 +22,13 @@ public class WinGetSessionTests
     }
 
     [Fact]
+    public async Task ReadVersion_MatchesTheOpenedSession()
+    {
+        var session = await RealWinGet.OpenAsync();
+        Assert.Equal(session.Version, await WinGetSession.ReadVersionAsync(Ct));
+    }
+
+    [Fact]
     public async Task ListInstalled_HasLocalIdsAndCatalogMatches()
     {
         var session = await RealWinGet.OpenAsync();

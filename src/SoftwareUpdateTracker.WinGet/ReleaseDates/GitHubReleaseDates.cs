@@ -14,31 +14,54 @@ public sealed class GitHubReleaseDates(HttpClient http, TimeProvider time) : IRe
     private const int MaxChars = 64 * 1024;
 
     private readonly ConcurrentDictionary<string, DateOnly?> _known = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Task<DateOnly?>> _asking = new(StringComparer.Ordinal);
     private readonly Lock _gate = new();
     private DateTimeOffset _quietUntil = DateTimeOffset.MinValue;
 
+    // Callers asking for the same manifest at once share one request.
     public async Task<DateOnly?> GetAsync(string id, string version, CancellationToken ct)
     {
         if (Manifest.InstallerPath(id, version) is not { } path) return null;
+        ct.ThrowIfCancellationRequested();
         if (_known.TryGetValue(path, out var known)) return known;
-        if (Quiet()) return null;
-        using var timeout = new CancellationTokenSource(RequestTimeout, time);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+        Task<DateOnly?> asking;
+        lock (_gate)
+        {
+            if (_known.TryGetValue(path, out known)) return known;
+            if (time.GetUtcNow() < _quietUntil) return null;
+            if (!_asking.TryGetValue(path, out asking!))
+            {
+                asking = Task.Run(() => AskAsync(path), CancellationToken.None);
+                _asking[path] = asking;
+            }
+        }
+        return await asking.WaitAsync(ct);
+    }
+
+    // Has its own timeout, so a caller that gives up doesn't fail the others.
+    private async Task<DateOnly?> AskAsync(string path)
+    {
         try
         {
-            using var response = await http.GetAsync(new Uri(Manifests, path), HttpCompletionOption.ResponseHeadersRead, linked.Token);
+            using var timeout = new CancellationTokenSource(RequestTimeout, time);
+            using var response = await http.GetAsync(new Uri(Manifests, path), HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             if (response.StatusCode == HttpStatusCode.NotFound) return Remember(path, null);
             if (!response.IsSuccessStatusCode)
             {
                 Pause();
                 return null;
             }
-            return Remember(path, Manifest.ReleaseDate(await ReadStartAsync(response.Content, linked.Token)));
+            return Remember(path, Manifest.ReleaseDate(await ReadStartAsync(response.Content, timeout.Token)));
         }
-        catch (Exception e) when (e is HttpRequestException or IOException || e is OperationCanceledException && !ct.IsCancellationRequested)
+        // Nobody may be waiting for this task, so nothing escapes it: a failure means no date for now.
+        catch (Exception)
         {
             Pause();
             return null;
+        }
+        finally
+        {
+            lock (_gate) _asking.Remove(path);
         }
     }
 
@@ -46,11 +69,6 @@ public sealed class GitHubReleaseDates(HttpClient http, TimeProvider time) : IRe
     {
         _known[path] = date;
         return date;
-    }
-
-    private bool Quiet()
-    {
-        lock (_gate) return time.GetUtcNow() < _quietUntil;
     }
 
     private void Pause()

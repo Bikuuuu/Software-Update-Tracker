@@ -92,7 +92,15 @@ public partial class App : Application
 
     private static string Asset(string name) => Path.Combine(AppContext.BaseDirectory, "Assets", name);
 
-    private static void OpenLink(string url) => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+    private void OpenLink(string url)
+    {
+        if (Links.Openable(url) is not { } link)
+        {
+            _services?.Log.Warn($"Link not opened: {url}");
+            return;
+        }
+        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(link));
+    }
 
     private IReadOnlyList<(int, string, bool)> Menu() =>
     [

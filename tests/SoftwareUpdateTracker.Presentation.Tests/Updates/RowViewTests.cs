@@ -165,7 +165,7 @@ public class RowViewTests
     public void Skipped_CanBeUndone()
     {
         var view = View(Check(AppStatus.Skipped, skipped: "2.5.0"));
-        Assert.Equal((RowState.Skipped, "Skipped 2.5.0"), (view.State, view.Status));
+        Assert.Equal((RowState.Skipped, "Skipped version 2.5.0"), (view.State, view.Status));
         Assert.True(view.CanUndoSkip && view.CanUpdateNow && view.InUpToDateGroup);
         Assert.False(view.CanSkip || view.CountsForUpdateAll);
     }

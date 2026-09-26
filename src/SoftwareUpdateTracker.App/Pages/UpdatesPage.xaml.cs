@@ -33,6 +33,10 @@ public sealed partial class UpdatesPage : FlyoutPage
         Spinning();
     }
 
+    protected override void Shown() => Updates.Shown();
+
+    protected override void Hidden() => Updates.Hidden();
+
     private void OnUpdatesChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(UpdatesViewModel.IsSpinning)) Spinning();
@@ -43,6 +47,8 @@ public sealed partial class UpdatesPage : FlyoutPage
         if (Updates.IsSpinning) _spin.Begin();
         else _spin.Stop();
     }
+
+    private void OnHistory(object sender, RoutedEventArgs e) => Go(typeof(HistoryPage));
 
     private void OnSettings(object sender, RoutedEventArgs e) => Go(typeof(SettingsPage));
 

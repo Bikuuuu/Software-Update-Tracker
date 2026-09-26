@@ -1,4 +1,5 @@
 using SoftwareUpdateTracker.Core.Checking;
+using SoftwareUpdateTracker.Core.History;
 using SoftwareUpdateTracker.Core.Installing;
 using SoftwareUpdateTracker.Core.Inventory;
 using SoftwareUpdateTracker.Core.Storage;
@@ -50,6 +51,36 @@ public sealed class DemoWinGet(TimeProvider time) : IPackageSource, IPackageUpgr
             Offer = a.Available is null ? null : new Offer { Version = a.Available, FirstSeen = now - TimeSpan.FromDays(2) },
         })],
     };
+
+    // History the demo starts with: every kind of entry over four days. Fabrikam Chat's failure can be retried once a check
+    // has run; Wingtip Studio's can't, because a later update followed it.
+    public static IReadOnlyList<HistoryEntry> History(DateTimeOffset now)
+    {
+        HistoryEntry Entry(TimeSpan age, string id, string name, HistoryResult result, string? from, string to, string? reason = null, string? code = null) => new()
+        {
+            Time = now - age,
+            Id = id,
+            Source = Source,
+            Name = name,
+            Result = result,
+            FromVersion = from,
+            ToVersion = to,
+            Reason = reason,
+            Code = code,
+        };
+        return
+        [
+            Entry(TimeSpan.FromHours(1), "Fabrikam.Chat", "Fabrikam Chat", HistoryResult.Failed, "1.9.3", "1.10.0", "DiskFull", "0x8A150105"),
+            Entry(TimeSpan.FromHours(2), "Proseware.Maps", "Proseware Maps", HistoryResult.Failed, "2025.1", "2025.2", "NeedsAdmin", "0x8A150019"),
+            Entry(TimeSpan.FromDays(1), "Contoso.Editor", "Contoso Editor", HistoryResult.Updated, "2.4.0", "2.4.1"),
+            Entry(TimeSpan.FromDays(1.1), "Tailspin.Player", "Tailspin Player", HistoryResult.Updated, "3.0.19", "3.0.20", "RestartNeeded"),
+            Entry(TimeSpan.FromDays(2), "Litware.Sync", "Litware Sync", HistoryResult.Updated, "5.0.9", "5.1.0", "Phantom"),
+            Entry(TimeSpan.FromDays(2.1), "Northwind.Clock", "Northwind Clock", HistoryResult.Skipped, "1.0", "1.1"),
+            Entry(TimeSpan.FromDays(2.2), "Wingtip.Studio", "Wingtip Studio", HistoryResult.Updated, "7.9", "8.0"),
+            Entry(TimeSpan.FromDays(3), "Wingtip.Studio", "Wingtip Studio", HistoryResult.Failed, "7.9", "8.0", "Other"),
+            Entry(TimeSpan.FromDays(3.1), "Adatum.Photos", "Adatum Photos", HistoryResult.Cancelled, "11.9", "12.0"),
+        ];
+    }
 
     public async Task<CatalogRead> ReadAsync(IReadOnlyList<TrackedApp> apps, CancellationToken ct)
     {

@@ -161,6 +161,28 @@ public sealed class ChooseAppsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task EmptyList_SaysWhy()
+    {
+        await OpenFully();
+        _vm.ToggleShowSelectedCommand.Execute(null);
+        Assert.True(_vm.NoMatches);
+        Assert.Equal("No apps selected yet", _vm.EmptyText);
+        _vm.ToggleShowSelectedCommand.Execute(null);
+        _vm.Search = "nothing like this";
+        Assert.Equal("No apps match your search", _vm.EmptyText);
+    }
+
+    [Fact]
+    public async Task NoInstalledApps_SaysNoneFound()
+    {
+        _inventory.First = new AppInventory([], []);
+        _vm.Open();
+        _inventory.Finish(new AppInventory([], []));
+        await Until(() => _vm.NoMatches);
+        Assert.Equal("No apps found", _vm.EmptyText);
+    }
+
+    [Fact]
     public async Task UpdatedElsewhere_StartsCollapsed_AndSaysWhatUpdatesEachApp()
     {
         await OpenFully();

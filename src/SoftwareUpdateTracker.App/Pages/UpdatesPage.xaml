@@ -110,11 +110,11 @@
         </DataTemplate>
 
         <DataTemplate x:Key="PreviewIcon" x:DataType="updates:UpdateRow">
-            <controls:AppIcon Width="20" Height="20" Margin="0,0,2,0" LocalId="{x:Bind LocalId}" AppName="{x:Bind Name}" />
+            <controls:AppIcon Width="20" Height="20" Margin="0,0,2,0" LocalId="{x:Bind LocalId, Mode=OneWay}" AppName="{x:Bind Name, Mode=OneWay}" />
         </DataTemplate>
 
         <DataTemplate x:Key="NoticeBar" x:DataType="p:Notice">
-            <InfoBar IsOpen="True" Title="{x:Bind Title}" Message="{x:Bind Message}" Severity="{x:Bind app:Ui.Severity(Severity)}" IsClosable="{x:Bind Closable}" Closed="OnNoticeClosed" />
+            <controls:NoticeBar Closed="OnNoticeClosed" />
         </DataTemplate>
     </pages:FlyoutPage.Resources>
 
@@ -132,12 +132,14 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Image x:Name="Logo" Width="22" Height="22" VerticalAlignment="Top" Margin="0,2,0,0" />
-                <StackPanel Grid.Column="1">
-                    <TextBlock Text="Software Update Tracker" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    <TextBlock Text="{x:Bind Updates.Summary, Mode=OneWay}" Style="{StaticResource Secondary}" />
-                </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Image x:Name="Logo" Width="22" Height="22" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="Software Update Tracker" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{x:Bind Updates.Summary, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                     <Button Style="{StaticResource IconButton}" Command="{x:Bind Updates.CheckNowCommand}"
                             ToolTipService.ToolTip="{x:Bind p:Strings.CheckNow}" AutomationProperties.Name="{x:Bind p:Strings.CheckNow}">
                         <FontIcon Glyph="&#xE72C;" FontSize="16" RenderTransformOrigin="0.5,0.5">
@@ -145,6 +147,10 @@
                                 <RotateTransform x:Name="Spin" />
                             </FontIcon.RenderTransform>
                         </FontIcon>
+                    </Button>
+                    <Button Style="{StaticResource IconButton}" Click="OnHistory"
+                            ToolTipService.ToolTip="{x:Bind p:Strings.History}" AutomationProperties.Name="{x:Bind p:Strings.History}">
+                        <FontIcon Glyph="&#xE81C;" FontSize="16" />
                     </Button>
                     <Button Style="{StaticResource IconButton}" Click="OnSettings"
                             ToolTipService.ToolTip="{x:Bind p:Strings.Settings}" AutomationProperties.Name="{x:Bind p:Strings.Settings}">

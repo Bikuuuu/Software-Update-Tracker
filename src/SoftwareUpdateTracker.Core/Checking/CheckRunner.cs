@@ -127,7 +127,13 @@ public sealed class CheckRunner : IDisposable
     private async Task<IReadOnlyList<AppCheck>> CheckAsync(CancellationToken ct)
     {
         // A file that couldn't be read is read again first; while it still can't be, the check fails and retries.
-        if (_store.Unreadable) _store.Update(file => file);
+        // Once read, its interval times the checks: the scheduler started with the default.
+        if (_store.Unreadable)
+        {
+            _store.Update(file => file);
+            var interval = TimeSpan.FromHours(_store.Current.Settings.CheckIntervalHours);
+            if (_scheduler.Interval != interval) _scheduler.SetInterval(interval);
+        }
         var requested = _store.Current.Apps;
         if (requested.Count == 0) return [];
         var read = await _source.ReadAsync(requested, ct);

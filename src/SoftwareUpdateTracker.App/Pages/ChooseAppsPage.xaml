@@ -42,7 +42,7 @@
                     <ProgressRing Width="20" Height="20" IsActive="{x:Bind Choose.IsLoading, Mode=OneWay}" />
                     <TextBlock Text="{x:Bind p:Strings.LookingForApps}" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="{x:Bind p:Strings.NoMatches}" Style="{StaticResource Secondary}" Padding="0,12" Visibility="{x:Bind Choose.NoMatches, Mode=OneWay}" />
+                <TextBlock Text="{x:Bind Choose.EmptyText, Mode=OneWay}" Style="{StaticResource Secondary}" Padding="0,12" Visibility="{x:Bind Choose.NoMatches, Mode=OneWay}" />
                 <ItemsControl ItemsSource="{x:Bind Choose.Apps}" XYFocusKeyboardNavigation="Enabled" IsTabStop="False">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="choose:ChooseRow">

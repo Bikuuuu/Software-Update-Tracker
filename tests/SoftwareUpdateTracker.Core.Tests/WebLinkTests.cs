@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace SoftwareUpdateTracker.WinGet.Tests;
+namespace SoftwareUpdateTracker.Core.Tests;
 
 public class WebLinkTests
 {

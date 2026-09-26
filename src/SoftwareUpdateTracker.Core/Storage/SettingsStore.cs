@@ -3,19 +3,14 @@ namespace SoftwareUpdateTracker.Core.Storage;
 public sealed class SettingsStore(string path)
 {
     private readonly Lock _gate = new();
-    private SettingsFile _current = new();
-    private bool _unreadable;
+    // Replaced whole under the lock and read without it, so a save waiting on rename retries never blocks a reader.
+    private volatile SettingsFile _current = new();
+    private volatile bool _unreadable;
 
-    public SettingsFile Current
-    {
-        get { lock (_gate) return _current; }
-    }
+    public SettingsFile Current => _current;
 
     // True while settings.json can't be read (locked, denied, a folder). Defaults are in use and the file isn't saved over.
-    public bool Unreadable
-    {
-        get { lock (_gate) return _unreadable; }
-    }
+    public bool Unreadable => _unreadable;
 
     // True when a corrupt file was set aside and defaults were loaded; the app shows a notice.
     public bool Load()
@@ -24,12 +19,15 @@ public sealed class SettingsStore(string path)
     }
 
     // Changes are applied and saved one at a time. Throws IOException when the file can't be read or saved; nothing changes then.
+    // A change that returns the file it was given saves nothing.
     public SettingsFile Update(Func<SettingsFile, SettingsFile> change)
     {
         lock (_gate)
         {
             EnsureReadable();
-            var next = change(_current).Normalize();
+            var changed = change(_current);
+            if (ReferenceEquals(changed, _current)) return _current;
+            var next = changed.Normalize();
             JsonFile.Save(path, next, CoreJson.Default.SettingsFile);
             _current = next;
             return next;

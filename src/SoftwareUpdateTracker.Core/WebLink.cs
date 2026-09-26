@@ -1,4 +1,4 @@
-namespace SoftwareUpdateTracker.WinGet;
+namespace SoftwareUpdateTracker.Core;
 
 public static class WebLink
 {

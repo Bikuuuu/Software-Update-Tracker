@@ -99,12 +99,57 @@ public sealed class GitHubReleaseDatesTests : IDisposable
     }
 
     [Fact]
-    public async Task CallerCancellation_IsNotSwallowed()
+    public async Task CallerCancellation_IsNotSwallowed_AndAsksNothing()
     {
-        var (dates, _) = Create((_, _) => FakeHttp.Text(Yaml));
+        var (dates, http) = Create((_, _) => FakeHttp.Text(Yaml));
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => dates.GetAsync("Mozilla.Firefox", "131.0", cancelled.Token));
+        Assert.Empty(http.Requests);
+    }
+
+    [Fact]
+    public async Task ConcurrentAsks_ShareOneRequest()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var (dates, http) = Create(async (_, _) =>
+        {
+            entered.TrySetResult();
+            await release.Task;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Yaml) };
+        });
+        var first = dates.GetAsync("Mozilla.Firefox", "131.0", Ct);
+        await entered.Task.WaitAsync(Wait, Ct);
+        var second = dates.GetAsync("Mozilla.Firefox", "131.0", Ct);
+        release.SetResult();
+        Assert.Equal([new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20)], await Task.WhenAll(first, second).WaitAsync(Wait, Ct));
+        Assert.Single(http.Requests);
+    }
+
+    [Fact]
+    public async Task CallerThatGivesUp_DoesNotFailTheOthers()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestToken = CancellationToken.None;
+        var (dates, http) = Create(async (_, ct) =>
+        {
+            requestToken = ct;
+            entered.TrySetResult();
+            await release.Task;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Yaml) };
+        });
+        using var leaving = new CancellationTokenSource();
+        var first = dates.GetAsync("Mozilla.Firefox", "131.0", leaving.Token);
+        await entered.Task.WaitAsync(Wait, Ct);
+        var second = dates.GetAsync("Mozilla.Firefox", "131.0", Ct);
+        await leaving.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WaitAsync(Wait, Ct));
+        Assert.False(requestToken.IsCancellationRequested);
+        release.SetResult();
+        Assert.Equal(new DateOnly(2026, 9, 20), await second.WaitAsync(Wait, Ct));
+        Assert.Single(http.Requests);
     }
 
     [Fact]

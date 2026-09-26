@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.Management.Deployment;
+using SoftwareUpdateTracker.Core;
 using SoftwareUpdateTracker.Core.Checking;
 using SoftwareUpdateTracker.Core.Installing;
 using SoftwareUpdateTracker.Core.Versions;
@@ -31,6 +32,9 @@ public sealed class WinGetSession : IWinGetQueries
 
     // Throws PackageSourceException when winget is missing, too old or not answering.
     public static Task<WinGetSession> OpenAsync(CancellationToken ct) => Run(Open, ct);
+
+    // Only the version, with no catalog opened.
+    public static Task<string> ReadVersionAsync(CancellationToken ct) => Run(() => VersionOf(new PackageManager()), ct);
 
     public Task<IReadOnlyList<InstalledPackage>> ListInstalledAsync(CancellationToken ct) =>
         Run(() => Installed(_installed.FindPackages(new FindPackagesOptions())), ct);
@@ -118,21 +122,26 @@ public sealed class WinGetSession : IWinGetQueries
     private static WinGetSession Open()
     {
         var manager = new PackageManager();
-        string version;
-        try
-        {
-            version = manager.Version;
-        }
-        catch (InvalidCastException e)
-        {
-            throw new PackageSourceException(CheckProblem.WinGetTooOld, $"winget is older than {WinGetVersion.Minimum}.", e);
-        }
+        var version = VersionOf(manager);
         if (!WinGetVersion.IsSupported(version))
             throw new PackageSourceException(CheckProblem.WinGetTooOld, $"winget {version} is older than {WinGetVersion.Minimum}.");
         var reference = Reference(manager);
         var options = new CreateCompositePackageCatalogOptions { CompositeSearchBehavior = CompositeSearchBehavior.LocalCatalogs };
         options.Catalogs.Add(reference);
         return new WinGetSession(manager, Connect(manager.CreateCompositePackageCatalog(options)), Connect(reference), version);
+    }
+
+    // A winget too old to know the call throws InvalidCastException.
+    private static string VersionOf(PackageManager manager)
+    {
+        try
+        {
+            return manager.Version;
+        }
+        catch (InvalidCastException e)
+        {
+            throw new PackageSourceException(CheckProblem.WinGetTooOld, $"winget is older than {WinGetVersion.Minimum}.", e);
+        }
     }
 
     private static PackageCatalogReference Reference(PackageManager manager) =>

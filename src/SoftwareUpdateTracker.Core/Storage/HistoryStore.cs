@@ -7,20 +7,18 @@ public sealed class HistoryStore(string path, TimeProvider time)
     public static readonly TimeSpan Retention = TimeSpan.FromDays(90);
 
     private readonly Lock _gate = new();
-    private HistoryEntry[] _entries = [];
-    private bool _unreadable;
+    // Replaced whole under the lock and read without it, so a save waiting on rename retries never blocks a reader.
+    private volatile HistoryEntry[] _entries = [];
+    private volatile bool _unreadable;
 
-    // Newest first, 90 days at most.
-    public IReadOnlyList<HistoryEntry> Entries
-    {
-        get { lock (_gate) return Array.AsReadOnly(_entries); }
-    }
+    // Raised after Add, Clear or Retry changed the entries or Unreadable, outside the lock, on the caller's thread.
+    public event EventHandler? Changed;
+
+    // Newest first, 90 days at most as of the last change.
+    public IReadOnlyList<HistoryEntry> Entries => Array.AsReadOnly(_entries);
 
     // True while history.json can't be read. History starts empty and the file isn't saved over.
-    public bool Unreadable
-    {
-        get { lock (_gate) return _unreadable; }
-    }
+    public bool Unreadable => _unreadable;
 
     // True when a corrupt file was set aside and history started empty.
     public bool Load()
@@ -28,21 +26,62 @@ public sealed class HistoryStore(string path, TimeProvider time)
         lock (_gate) return Read() == FileState.Recovered;
     }
 
-    public void Add(HistoryEntry entry)
+    public void Add(HistoryEntry entry) => Change(() =>
     {
-        lock (_gate)
+        EnsureReadable();
+        Save(Prune([entry, .. _entries]));
+    });
+
+    // Clears what the user saw: an entry written after upTo stays.
+    public void Clear(DateTimeOffset upTo) => Change(() =>
+    {
+        EnsureReadable();
+        Save([.. _entries.Where(e => e.Time > upTo)]);
+    });
+
+    // Reads a file that couldn't be read again; the lock on it may have cleared.
+    public void Retry() => Change(() =>
+    {
+        if (_unreadable) Read();
+    });
+
+    private void Change(Action change)
+    {
+        var changed = false;
+        try
         {
-            EnsureReadable();
-            Save(Prune([entry, .. _entries]));
+            lock (_gate)
+            {
+                var (entries, unreadable) = (_entries, _unreadable);
+                try
+                {
+                    change();
+                }
+                finally
+                {
+                    changed = !ReferenceEquals(entries, _entries) || unreadable != _unreadable;
+                }
+            }
+        }
+        finally
+        {
+            if (changed) Raise();
         }
     }
 
-    public void Clear()
+    // A handler that throws must not fail the write that already happened.
+    private void Raise()
     {
-        lock (_gate)
+        if (Changed is not { } changed) return;
+        foreach (var handler in changed.GetInvocationList().Cast<EventHandler>())
         {
-            EnsureReadable();
-            Save([]);
+            try
+            {
+                handler(this, EventArgs.Empty);
+            }
+            catch (Exception)
+            {
+            }
         }
     }
 

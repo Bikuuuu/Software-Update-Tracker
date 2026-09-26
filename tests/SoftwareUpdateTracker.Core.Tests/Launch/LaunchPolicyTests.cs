@@ -18,6 +18,7 @@ public class LaunchPolicyTests
         Assert.False(LaunchPolicy.ShouldRelaunchUnelevated(ElevationType.Limited));
 
     [Theory]
+    [InlineData("--cleanup", true)]
     [InlineData("--cleanup-notifications", true)]
     [InlineData("--startup", false)]
     public void MaintenanceVerbs_RunBeforeElevationCheck(string arg, bool expected) =>

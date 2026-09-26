@@ -124,14 +124,14 @@ Mockup: [`flyout-mockup.png`](flyout-mockup.png). Letter tiles stand in for real
 | General | Start with Windows | On (installer checkbox) |
 | General | Shortcut to open (click to record, Esc to clear) | Ctrl + Alt + U |
 | General | Update Software Update Tracker automatically | On |
-| About | Version, GitHub link, license, Open logs folder, Copy diagnostic info | |
+| About | Open logs folder, Copy diagnostic info (versions, counts and settings only: no app names, paths or user names) | |
 
-The footer has a **Quit** button.
+The footer shows the version, the GitHub and license links, and a **Quit** button.
 
 ### 4.6 History page
-- Grouped by day. Each entry shows the result icon, app, "from → to" or the reason, and the time.
-- The result is one of: Updated / Failed / Skipped / Cancelled. Failed entries have **Retry**.
-- It keeps 90 days. The footer has **Clear history**.
+- Grouped by the local day ("Today", "Yesterday", "Sep 22"), newest first. Each entry shows the result icon, app, "from → to" or the reason, and the time in the Windows time format.
+- The result is one of: Updated / Failed / Skipped / Cancelled. An app's newest entry has **Retry** when it failed and the app's row still offers that same version. Retry returns to Updates, where the row shows the install.
+- It keeps 90 days and shows 50 entries at a time, with **Show older**. The footer has **Clear history**, which asks first and clears what the page showed; an entry written meanwhile stays.
 
 ### 4.7 Notifications
 - Notifications are Windows toasts with buttons, shown under the app's own name and icon. Clicking the body opens the flyout.
@@ -313,6 +313,8 @@ README.md  LICENSE  .gitignore  .gitattributes  Directory.Build.props  global.js
 
 ### 6.7 Startup, single instance, shortcut
 - **Start with Windows:** a per-user `HKCU\…\Run` entry pointing to `SoftwareUpdateTracker.exe --startup`. The first check runs 1 minute later.
+  - The switch shows on only while that entry starts this copy and Task Manager's Startup apps hasn't turned it off. Turning it on in Settings clears Task Manager's off mark.
+  - `SoftwareUpdateTracker.exe --cleanup` removes this user's entry and its mark (only when they start this copy) and the toast registration. The uninstaller runs it.
 - The installer's "Start with Windows" and "Launch now" options pass through to the app, which runs unelevated (Inno `runasoriginaluser`).
 - **Shortcut:** `RegisterHotKey` on a message-only window.
 
@@ -326,6 +328,7 @@ Every error shows in plain words, with a **Details** button that reveals the cod
 | COM server not responding | Retry after 1, 5 and 15 min; status "Can't reach winget right now, retrying" |
 | Offline | Checks skip quietly; they run when the network returns |
 | Download stalled (no progress for 2 min) | Cancel, retry once, then "Download stalled" |
+| Still queued in winget after 2 min | "Waiting for another install to finish…"; not cancelled; the 30-minute cap applies |
 | Another install in progress (0x8A150102 / MSI 1618) | Retry up to 3× at 2 min intervals |
 | Installer running over 30 min | Move on; mark "Took too long" |
 | App in use | Close & update (§6.3) |
@@ -381,7 +384,7 @@ These are measured with `scripts/resource-check.ps1` before each release. A rele
 
 - **Registry and system entries:**
   - the uninstall entry
-  - the HKCU Run value (if Start with Windows is on; removed for the user who uninstalls)
+  - the HKCU Run value (if Start with Windows is on; removed for the user who uninstalls), and the mark Task Manager keeps for it under `Explorer\StartupApproved\Run`
   - the toast registration (AUMID / COM activator)
   - the silent-mode task (only while silent mode is on)
   - winget's `ProxyCommandLineOptions` (only while the speed limit is on, and only if the app enabled it)

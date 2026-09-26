@@ -5,6 +5,7 @@ using SoftwareUpdateTracker.Core.Logging;
 using SoftwareUpdateTracker.Core.Scheduling;
 using SoftwareUpdateTracker.Core.Storage;
 using SoftwareUpdateTracker.Presentation.Demo;
+using SoftwareUpdateTracker.Presentation.History;
 using SoftwareUpdateTracker.Presentation.Settings;
 using SoftwareUpdateTracker.Presentation.Updates;
 using Xunit;
@@ -39,7 +40,7 @@ public sealed class DemoWinGetTests : IDisposable
         _runner = new CheckRunner(_scheduler, _settings, _demo, _demo, _time, log);
         _queue = new InstallQueue(_demo, _demo, _settings, history, _time, log, DemoWinGet.Timings);
         _inbox = new UiInbox(_ui.Post, log);
-        _vm = new UpdatesViewModel(_scheduler, _queue, _settings, new SettingsWriter(_settings, log, _ui.Post), history, _time, log, _ui.Post, _ => { });
+        _vm = new UpdatesViewModel(_scheduler, _queue, _settings, new SettingsWriter(_settings, log, _ui.Post), history, new HistoryWriter(history, log, _ui.Post), _time, _ui.Post, _ => { });
         _scheduler.CheckDue += _inbox.For<CheckTicket>(_ => _vm.CheckStarted());
         _runner.Completed += _inbox.For<CheckCompleted>(_vm.CheckFinished);
         _queue.Changed += _inbox.For<InstallItem>(_vm.InstallChanged);
@@ -125,6 +126,23 @@ public sealed class DemoWinGetTests : IDisposable
         Assert.Contains(final.Trackable, a => a.Name == "Northwind Budget");
         Assert.DoesNotContain(final.Elsewhere, a => a.Name == "Northwind Budget");
         Assert.Contains(final.Elsewhere, a => a.UpdatedBy == Core.Inventory.UpdatedBy.Steam);
+    }
+
+    [Fact]
+    public async Task History_ShowsEveryKindOfEntry_AndRetriesOnlyTheOneThatFits()
+    {
+        var history = new HistoryStore(_folder.PathOf("demo-history.json"), _time);
+        foreach (var entry in DemoWinGet.History(_time.GetUtcNow())) history.Add(entry);
+        var log = new FileLog(_folder.PathOf("demo.log"), _time);
+        var page = new HistoryViewModel(history, new HistoryWriter(history, log, _ui.Post), _vm, _time, () => System.Globalization.CultureInfo.InvariantCulture);
+        _time.Advance(CheckScheduler.StartupDelay);
+        await Run(() => Rows.Count() == 15);
+        page.Shown();
+        var rows = page.Groups.SelectMany(g => g.Rows).ToList();
+        Assert.Equal(Enum.GetValues<HistoryIcon>().Order(), rows.Select(r => r.Icon).Distinct().Order());
+        Assert.Equal(["Fabrikam Chat", "Proseware Maps"], rows.Where(r => r.CanRetry).Select(r => r.Name));
+        Assert.Contains(rows, r => r.IsFailed && !r.HasDetails);
+        Assert.Equal(["Today", "Yesterday", "Sep 23", "Sep 22"], page.Groups.Select(g => g.Title));
     }
 
     private sealed class Reported(Action<Core.Inventory.AppInventory> report) : IProgress<Core.Inventory.AppInventory>

@@ -18,11 +18,7 @@ public static class Program
         var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
         // Maintenance verbs run as-is, even elevated (the uninstaller runs elevated).
-        if (LaunchPolicy.IsMaintenanceVerb(args))
-        {
-            Notifications.ToastService.RemoveRegistration();
-            return 0;
-        }
+        if (LaunchPolicy.IsMaintenanceVerb(args)) return Cleanup();
 
         if (LaunchPolicy.ShouldRelaunchUnelevated(ProcessInfo.GetElevationType()))
         {
@@ -46,5 +42,25 @@ public static class Program
             new App();
         });
         return 0;
+    }
+
+    // Removes what the app registered for this user. Every step runs even when another fails; a failure exits with 1.
+    private static int Cleanup()
+    {
+        var failed = false;
+        void Step(Action step)
+        {
+            try
+            {
+                step();
+            }
+            catch (Exception)
+            {
+                failed = true;
+            }
+        }
+        Step(() => new StartupEntry(new RegistryStartupValues(), Environment.ProcessPath!).Remove());
+        Step(Notifications.ToastService.RemoveRegistration);
+        return failed ? 1 : 0;
     }
 }
