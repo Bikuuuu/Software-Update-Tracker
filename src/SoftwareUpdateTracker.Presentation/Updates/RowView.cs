@@ -36,7 +36,7 @@ public enum RowAction
 }
 
 // What one row shows, from the last check and the app's install. Pure, so every state is tested without the UI.
-public sealed record RowView
+public sealed record RowView : IStatusLine
 {
     public required RowState State { get; init; }
     public required string Status { get; init; }

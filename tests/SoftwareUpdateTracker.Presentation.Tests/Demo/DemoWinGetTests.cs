@@ -128,6 +128,23 @@ public sealed class DemoWinGetTests : IDisposable
         Assert.Contains(final.Elsewhere, a => a.UpdatedBy == Core.Inventory.UpdatedBy.Steam);
     }
 
+    [Fact]
+    public async Task History_ShowsEveryKindOfEntry_AndRetriesOnlyTheOneThatFits()
+    {
+        var history = new HistoryStore(_folder.PathOf("demo-history.json"), _time);
+        foreach (var entry in DemoWinGet.History(_time.GetUtcNow())) history.Add(entry);
+        var log = new FileLog(_folder.PathOf("demo.log"), _time);
+        var page = new HistoryViewModel(history, new HistoryWriter(history, log, _ui.Post), _vm, _time, () => System.Globalization.CultureInfo.InvariantCulture);
+        _time.Advance(CheckScheduler.StartupDelay);
+        await Run(() => Rows.Count() == 15);
+        page.Shown();
+        var rows = page.Groups.SelectMany(g => g.Rows).ToList();
+        Assert.Equal(Enum.GetValues<HistoryIcon>().Order(), rows.Select(r => r.Icon).Distinct().Order());
+        Assert.Equal(["Fabrikam Chat", "Proseware Maps"], rows.Where(r => r.CanRetry).Select(r => r.Name));
+        Assert.Contains(rows, r => r.IsFailed && !r.HasDetails);
+        Assert.Equal(["Today", "Yesterday", "Sep 23", "Sep 22"], page.Groups.Select(g => g.Title));
+    }
+
     private sealed class Reported(Action<Core.Inventory.AppInventory> report) : IProgress<Core.Inventory.AppInventory>
     {
         public void Report(Core.Inventory.AppInventory value) => report(value);
