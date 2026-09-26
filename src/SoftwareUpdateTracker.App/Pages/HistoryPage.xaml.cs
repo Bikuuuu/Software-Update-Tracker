@@ -40,10 +40,11 @@ public sealed partial class HistoryPage : FlyoutPage
 
     private void OnBack(object sender, RoutedEventArgs e) => Back();
 
-    // Enter or Space on a focused row runs its Retry.
+    // Enter or Space on a focused row runs its Retry. Keys on its Details link or Retry button stay theirs.
     private void OnRowKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key is not (Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Space)) return;
+        if (!ReferenceEquals(e.OriginalSource, sender)) return;
         if (sender is not FrameworkElement { DataContext: HistoryRow { CanRetry: true } row }) return;
         row.RetryCommand.Execute(null);
         e.Handled = true;
