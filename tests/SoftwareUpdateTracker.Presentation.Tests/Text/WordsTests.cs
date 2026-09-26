@@ -1,3 +1,4 @@
+using System.Globalization;
 using SoftwareUpdateTracker.Core.Installing;
 using SoftwareUpdateTracker.Core.Inventory;
 using SoftwareUpdateTracker.Presentation.Text;
@@ -85,6 +86,32 @@ public class WordsTests
     [Fact]
     public void Counts_UseOneAndMany() =>
         Assert.Equal(
-            ["1 update ready", "3 updates ready", "1 app is up to date", "9 apps are up to date", "1 app tracked", "0 apps tracked"],
-            [Words.UpdatesReady(1), Words.UpdatesReady(3), Words.UpToDate(1), Words.UpToDate(9), Words.AppsTracked(1), Words.AppsTracked(0)]);
+            ["1 update ready", "3 updates ready", "1 app is up to date", "9 apps are up to date", "1 app tracked", "4 apps tracked", "No apps tracked"],
+            [Words.UpdatesReady(1), Words.UpdatesReady(3), Words.UpToDate(1), Words.UpToDate(9), Words.AppsTracked(1), Words.AppsTracked(4), Words.AppsTracked(0)]);
+
+    [Fact]
+    public void Hours_AndWaitDays_NameEachChoice() =>
+        Assert.Equal(
+            ["1 hour", "3 hours", "24 hours", "Off", "1 day", "7 days"],
+            [Words.Hours(1), Words.Hours(3), Words.Hours(24), Words.WaitDays(0), Words.WaitDays(1), Words.WaitDays(7)]);
+
+    [Theory]
+    [InlineData("2026-09-25", "2026-09-25", "Today")]
+    [InlineData("2026-09-26", "2026-09-25", "Today")]
+    [InlineData("2026-09-24", "2026-09-25", "Yesterday")]
+    [InlineData("2026-09-22", "2026-09-25", "Sep 22")]
+    [InlineData("2026-12-31", "2027-01-01", "Yesterday")]
+    [InlineData("2026-12-31", "2027-01-02", "Dec 31, 2026")]
+    public void Day_NamesTodayYesterdayOrTheDate(string day, string today, string text) =>
+        Assert.Equal(text, Words.Day(DateOnly.Parse(day, CultureInfo.InvariantCulture), DateOnly.Parse(today, CultureInfo.InvariantCulture)));
+
+    [Fact]
+    public void TimeOfDay_FollowsTheCultureGiven()
+    {
+        var at = new DateTimeOffset(2026, 9, 25, 14, 32, 0, TimeSpan.FromHours(4));
+        var twelveHour = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+        twelveHour.DateTimeFormat.ShortTimePattern = "h:mm tt";
+        twelveHour.DateTimeFormat.PMDesignator = "PM";
+        Assert.Equal(["14:32", "2:32 PM"], [Words.TimeOfDay(at, CultureInfo.InvariantCulture), Words.TimeOfDay(at, twelveHour)]);
+    }
 }

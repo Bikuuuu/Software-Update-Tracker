@@ -1,4 +1,5 @@
 using SoftwareUpdateTracker.Core.Checking;
+using SoftwareUpdateTracker.Presentation.Text;
 
 namespace SoftwareUpdateTracker.Presentation;
 
@@ -19,6 +20,8 @@ public enum NoticeKind
     HistoryRecovered,
     HistoryUnreadable,
     SaveFailed,
+    StartupNotChanged,
+    HistoryNotCleared,
 }
 
 // A banner at the top of a page. A page shows one notice per kind.
@@ -46,4 +49,12 @@ public sealed record Notice(NoticeKind Kind, NoticeSeverity Severity, string Tit
     public static Notice HistoryRecovered { get; } = new(NoticeKind.HistoryRecovered, NoticeSeverity.Warning, Strings.HistoryRecovered, Closable: true);
     public static Notice HistoryUnreadable { get; } = new(NoticeKind.HistoryUnreadable, NoticeSeverity.Error, Strings.HistoryUnreadable);
     public static Notice SaveFailed { get; } = new(NoticeKind.SaveFailed, NoticeSeverity.Error, Strings.SaveFailed, Closable: true);
+
+    public static Notice StartupNotChanged(Exception error) =>
+        new(NoticeKind.StartupNotChanged, NoticeSeverity.Error, Strings.StartupNotChanged, Details: Code(error), Closable: true);
+
+    public static Notice HistoryNotCleared(Exception error) =>
+        new(NoticeKind.HistoryNotCleared, NoticeSeverity.Error, Strings.HistoryNotCleared, Details: Code(error), Closable: true);
+
+    private static string Code(Exception error) => Words.Format(Strings.DetailsCode, $"0x{error.HResult:X8}");
 }

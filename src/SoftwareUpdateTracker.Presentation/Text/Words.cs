@@ -45,7 +45,7 @@ public static class Words
             <= 0 => Strings.ReleasedToday,
             1 => Strings.ReleasedYesterday,
             <= 30 => Format(Strings.DaysAgo, days),
-            _ => day.ToString("MMM d, yyyy", Culture),
+            _ => day.ToString(Strings.DayYearFormat, Culture),
         };
     }
 
@@ -69,7 +69,32 @@ public static class Words
 
     public static string UpToDate(int count) => count == 1 ? Strings.UpToDateOne : Format(Strings.UpToDateMany, count);
 
-    public static string AppsTracked(int count) => count == 1 ? Strings.AppsTrackedOne : Format(Strings.AppsTrackedMany, count);
+    public static string AppsTracked(int count) => count switch
+    {
+        0 => Strings.AppsTrackedNone,
+        1 => Strings.AppsTrackedOne,
+        _ => Format(Strings.AppsTrackedMany, count),
+    };
+
+    public static string Hours(int hours) => hours == 1 ? Strings.HoursOne : Format(Strings.HoursMany, hours);
+
+    public static string WaitDays(int days) => days switch
+    {
+        0 => Strings.WaitOff,
+        1 => Strings.DaysOne,
+        _ => Format(Strings.DaysMany, days),
+    };
+
+    // A History day, both days local. A day ahead of today counts as today.
+    public static string Day(DateOnly day, DateOnly today)
+    {
+        if (day >= today) return Strings.DayToday;
+        if (day == today.AddDays(-1)) return Strings.DayYesterday;
+        return day.ToString(day.Year == today.Year ? Strings.DayFormat : Strings.DayYearFormat, Culture);
+    }
+
+    // In the user's own time format, such as 14:32 or 2:32 PM.
+    public static string TimeOfDay(DateTimeOffset local, CultureInfo culture) => local.ToString("t", culture);
 
     // "a · b"
     public static string Joined(string first, string second) => Format(Strings.Joined, first, second);
