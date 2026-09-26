@@ -8,7 +8,8 @@ public static class LaunchPolicy
     public const string StartupFlag = "--startup";
     // Debug builds only: made-up apps instead of winget.
     public const string DemoFlag = "--demo";
-    private static readonly string[] MaintenanceVerbs = ["--cleanup-notifications"];
+    // --cleanup removes what the app registered for this user; the older name still works.
+    private static readonly string[] MaintenanceVerbs = ["--cleanup", "--cleanup-notifications"];
 
     // Only a split-token (UAC) elevation can be undone via Explorer; with UAC off it would loop.
     public static bool ShouldRelaunchUnelevated(ElevationType type) => type == ElevationType.Full;
