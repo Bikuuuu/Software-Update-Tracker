@@ -1,11 +1,11 @@
-# Software Update Tracker: Design
+# Tiny Tracker: Design
 
 Status: approved in review, 2026-09-25
 Replaces: the PowerShell prototype (`UpdateTracker.ps1`), which stays in git history.
 
 ## 1. Summary
 
-Software Update Tracker is a Windows 11 tray app that keeps the apps you choose up to date, using winget. It has no main window. Everything happens in a Windows 11-style flyout that opens from the notification area (including the hidden-icons menu) or from a keyboard shortcut. It checks on a schedule and shows live progress. It installs updates on request, or by itself for apps where you turn on Auto.
+Tiny Tracker is a Windows 11 tray app that keeps the apps you choose up to date, using winget. It has no main window. Everything happens in a Windows 11-style flyout that opens from the notification area (including the hidden-icons menu) or from a keyboard shortcut. It checks on a schedule and shows live progress. It installs updates on request, or by itself for apps where you turn on Auto.
 
 ## 2. Goals and non-goals
 
@@ -31,7 +31,7 @@ Software Update Tracker is a Windows 11 tray app that keeps the apps you choose 
 | Topic | Decision |
 |---|---|
 | Audience | Public GitHub repo, MIT license. Public |
-| Name | "Software Update Tracker" everywhere |
+| Name | "Tiny Tracker" everywhere, and `TinyTracker` in code and file names. The GitHub repo is `Bikuuuu/Tiny-Tracker-Software-Update-Tracker` |
 | OS | Windows 11 only |
 | Stack | C#, .NET 10 (LTS), WinUI 3 (Windows App SDK, pinned version), unpackaged, self-contained, x64 |
 | Distribution | Inno Setup 7.1 per-machine installer into Program Files, published on GitHub Releases. No Store |
@@ -54,7 +54,7 @@ Mockup: [`flyout-mockup.png`](flyout-mockup.png). Letter tiles stand in for real
   - Idle: plain icon.
   - Updates ready: a small white dot with a dark outline in the corner, visible on dark, light and accent taskbars.
   - Working: a subtle frame animation that runs only while a check or install is active.
-- **Tooltip:** "Software Update Tracker: 3 updates ready", "…: Installing NVIDIA App (45%)", or "…: Up to date".
+- **Tooltip:** "Tiny Tracker: 3 updates ready", "…: Installing NVIDIA App (45%)", or "…: Up to date".
 - **Left-click** toggles the flyout. **Right-click** opens a menu: Open, Check now, Update all, Settings, Quit.
 
 ### 4.2 Flyout window
@@ -123,7 +123,7 @@ Mockup: [`flyout-mockup.png`](flyout-mockup.png). Letter tiles stand in for real
 | Notifications | Show notifications | On |
 | General | Start with Windows | On (installer checkbox) |
 | General | Shortcut to open (click to record, Esc to clear) | Ctrl + Alt + U |
-| General | Update Software Update Tracker automatically | On |
+| General | Update Tiny Tracker automatically | On |
 | About | Open logs folder, Copy diagnostic info (versions, counts and settings only: no app names, paths or user names) | |
 
 The footer shows the version, the GitHub and license links, and a **Quit** button.
@@ -143,7 +143,7 @@ The footer shows the version, the GitHub and license links, and a **Quit** butto
 | Update failed because the app is open | "G HUB needs to close to update" | Close & update, Later |
 | Batch finished | "3 updates installed" / "1 update failed" | View |
 | Restart needed | "Restart to finish updating NVIDIA App" | none |
-| Self-update available (auto self-update off) | "Software Update Tracker 1.1 is available" | Update, Later |
+| Self-update available (auto self-update off) | "Tiny Tracker 1.1 is available" | Update, Later |
 
 - Toasts are held back while a full-screen game or presentation runs, then shown afterwards.
 - When notifications are off, the tray badge still shows what's pending.
@@ -159,14 +159,14 @@ The footer shows the version, the GitHub and license links, and a **Quit** butto
 
 ```
 ┌─ User session, normal rights ──────────────────────────────────────┐
-│ SoftwareUpdateTracker.exe  (WinUI 3)                               │
+│ TinyTracker.exe  (WinUI 3)                                         │
 │   tray icon · flyout · toasts · scheduler · hotkey · speed relay   │
 │   ├─ Core    rules, scheduling, settings, history (no UI, tested)  │
 │   └─ WinGet  COM client (list, metadata, upgrades) + CLI executor  │
 └───────────────┬────────────────────────────────────────────────────┘
                 │ named pipe, ACL: this user + Administrators only
 ┌───────────────▼─ Elevated (UAC per batch, or silent-mode task) ────┐
-│ SoftwareUpdateTracker.Helper.exe  (no UI, stateless)               │
+│ TinyTracker.Helper.exe  (no UI, stateless)                         │
 │   accepts: upgrade(id, source, expectedVersion), cancel,           │
 │   setProxyOption(on/off), installSelfUpdate(verified file)         │
 └────────────────────────────────────────────────────────────────────┘
@@ -180,16 +180,16 @@ The footer shows the version, the GitHub and license links, and a **Quit** butto
 
 ```
 src/
-  SoftwareUpdateTracker.App/            WinUI 3 tray app (views, tray, windowing, icons)
-  SoftwareUpdateTracker.Presentation/   view models, words, strings (no UI framework)
-  SoftwareUpdateTracker.Core/           models, rules, scheduler, stores, install queue
-  SoftwareUpdateTracker.WinGet/         COM adapter, CLI executor, throttling relay, error mapping
-  SoftwareUpdateTracker.Helper/         elevated worker
+  TinyTracker.App/              WinUI 3 tray app (views, tray, windowing, icons)
+  TinyTracker.Presentation/     view models, words, strings (no UI framework)
+  TinyTracker.Core/             models, rules, scheduler, stores, install queue
+  TinyTracker.WinGet/           COM adapter, CLI executor, throttling relay, error mapping
+  TinyTracker.Helper/           elevated worker
 tests/
-  SoftwareUpdateTracker.Core.Tests/
-  SoftwareUpdateTracker.WinGet.Tests/
-  SoftwareUpdateTracker.Presentation.Tests/   view-model tests
-installer/SoftwareUpdateTracker.iss
+  TinyTracker.Core.Tests/
+  TinyTracker.WinGet.Tests/
+  TinyTracker.Presentation.Tests/   view-model tests
+installer/TinyTracker.iss
 assets/icon/                    hamster.svg, hamster-small.svg, generated .ico/.png
 scripts/                        icon generation, leftover scan, resource check
 docs/design/                    this document, mockup
@@ -209,7 +209,7 @@ README.md  LICENSE  .gitignore  .gitattributes  Directory.Build.props  global.js
 - Inno Setup 7.1.
 
 ### 5.4 Data (per user)
-- `%APPDATA%\Software Update Tracker\settings.json` holds:
+- `%APPDATA%\Tiny Tracker\settings.json` holds:
   - the settings
   - the tracked apps (id, source, Auto, skipped version)
   - bookkeeping: first-seen dates, cached release dates, last auto attempt, phantom flags
@@ -289,10 +289,10 @@ README.md  LICENSE  .gitignore  .gitattributes  Directory.Build.props  global.js
 - Known gap: web installers that fetch more data themselves are not capped. The README states this.
 
 ### 6.5 Self-update
-- **Once a day,** the app calls the GitHub Releases API for `Bikuuuu/Software-Update-Tracker` and compares SemVer.
-- **Downloading:** the app downloads `SoftwareUpdateTracker-Setup-<ver>-x64.exe` (throttled if the limit is on).
+- **Once a day,** the app calls the GitHub Releases API for `Bikuuuu/Tiny-Tracker-Software-Update-Tracker` and compares SemVer.
+- **Downloading:** the app downloads `TinyTracker-Setup-<ver>-x64.exe` (throttled if the limit is on).
 - **Installing,** done by the helper (one admin prompt in default mode, none in silent mode):
-  1. Copy the file into `…\Software Update Tracker\update\` inside Program Files, which only admins can write.
+  1. Copy the file into `…\Tiny Tracker\update\` inside Program Files, which only admins can write.
   2. Verify the copy's SHA-256 against the asset digest that the helper fetches from the GitHub API itself. Once releases are signed, also verify the Authenticode signature.
   3. Keep the file open with writes denied.
   4. Run it with `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS`. The app registers with Restart Manager (`RegisterApplicationRestart`), so it comes back after the upgrade.
@@ -302,8 +302,8 @@ README.md  LICENSE  .gitignore  .gitattributes  Directory.Build.props  global.js
 - Repo setting: **immutable releases** enabled.
 
 ### 6.6 Silent mode
-- **Turning it on** registers the scheduled task "Software Update Tracker Helper" through the helper (one UAC prompt). The task:
-  - runs `…\SoftwareUpdateTracker.Helper.exe --task`
+- **Turning it on** registers the scheduled task "Tiny Tracker Helper" through the helper (one UAC prompt). The task:
+  - runs `…\TinyTracker.Helper.exe --task`
   - has RunLevel Highest
   - runs only when the user is logged on
   - has no triggers; it's started on demand by the app through the Task Scheduler API
@@ -312,9 +312,9 @@ README.md  LICENSE  .gitignore  .gitattributes  Directory.Build.props  global.js
 - **Fallback:** if elevated winget is unavailable, for example with Windows *Administrator Protection* enabled, updates fall back to unelevated runs with per-installer prompts. A one-time tip explains this.
 
 ### 6.7 Startup, single instance, shortcut
-- **Start with Windows:** a per-user `HKCU\…\Run` entry pointing to `SoftwareUpdateTracker.exe --startup`. The first check runs 1 minute later.
+- **Start with Windows:** a per-user `HKCU\…\Run` entry pointing to `TinyTracker.exe --startup`. The first check runs 1 minute later.
   - The switch shows on only while that entry starts this copy and Task Manager's Startup apps hasn't turned it off. Turning it on in Settings clears Task Manager's off mark.
-  - `SoftwareUpdateTracker.exe --cleanup` removes this user's entry and its mark (only when they start this copy) and the toast registration. The uninstaller runs it.
+  - `TinyTracker.exe --cleanup` removes this user's entry and its mark (only when they start this copy) and the toast registration. The uninstaller runs it.
 - The installer's "Start with Windows" and "Launch now" options pass through to the app, which runs unelevated (Inno `runasoriginaluser`).
 - **Shortcut:** `RegisterHotKey` on a message-only window.
 
@@ -375,8 +375,8 @@ These are measured with `scripts/resource-check.ps1` before each release. A rele
 
 | Item | Location | Size or lifetime |
 |---|---|---|
-| App binaries (self-contained) | `C:\Program Files\Software Update Tracker\` | about 100 MB |
-| Settings, history | `%APPDATA%\Software Update Tracker\` | KB |
+| App binaries (self-contained) | `C:\Program Files\Tiny Tracker\` | about 100 MB |
+| Settings, history | `%APPDATA%\Tiny Tracker\` | KB |
 | Logs | same folder | ≤ 2 MB |
 | Icons | memory only | none on disk |
 | Downloaded installers | winget's own temp folder, deleted by winget; the app keeps none | transient |
