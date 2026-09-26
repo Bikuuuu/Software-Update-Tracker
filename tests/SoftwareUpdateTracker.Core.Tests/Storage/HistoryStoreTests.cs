@@ -159,22 +159,25 @@ public sealed class HistoryStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Entries_CanBeReadWhileASaveWaitsForTheFile()
+    public void Entries_CanBeReadWhileASaveWaitsForTheFile()
     {
-        var ct = TestContext.Current.CancellationToken;
         var store = Store();
         store.Add(Entry("A", TimeSpan.FromHours(1)));
         using var held = new FileStream(HistoryPath, FileMode.Open, FileAccess.Read, FileShare.None);
-        var adding = Task.Run(() => Assert.Throws<IOException>(() => store.Add(Entry("B", TimeSpan.Zero))), ct);
+        Exception? refused = null;
+        // Off the pool: parallel tests can keep every pool thread busy past the rename retries.
+        var adding = new Thread(() => refused = Record.Exception(() => store.Add(Entry("B", TimeSpan.Zero))));
+        adding.Start();
         // The temp file stays while the save retries its rename, holding the lock.
-        while (!File.Exists(HistoryPath + ".tmp") && !adding.IsCompleted) await Task.Delay(1, ct);
-        Assert.False(adding.IsCompleted, "The save ended before the read was tried.");
+        while (!File.Exists(HistoryPath + ".tmp") && adding.IsAlive) Thread.Sleep(1);
+        Assert.True(adding.IsAlive, "The save ended before the read was tried.");
         var count = -1;
         var reader = new Thread(() => count = store.Entries.Count);
         reader.Start();
         Assert.True(reader.Join(TimeSpan.FromMilliseconds(150)), "The read waited for the save.");
         Assert.Equal(1, count);
-        await adding;
+        adding.Join();
+        Assert.IsType<IOException>(refused);
     }
 
     [Fact]

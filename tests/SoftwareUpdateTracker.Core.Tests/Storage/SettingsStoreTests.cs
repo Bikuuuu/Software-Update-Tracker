@@ -315,22 +315,25 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Current_CanBeReadWhileASaveWaitsForTheFile()
+    public void Current_CanBeReadWhileASaveWaitsForTheFile()
     {
-        var ct = TestContext.Current.CancellationToken;
         var store = new SettingsStore(SettingsPath);
         store.Update(f => f with { Apps = [new TrackedApp { Id = "A", Source = "winget" }] });
         using var held = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None);
-        var saving = Task.Run(() => Assert.Throws<IOException>(() => store.Update(f => f with { Apps = [] })), ct);
+        Exception? refused = null;
+        // Off the pool: parallel tests can keep every pool thread busy past the rename retries.
+        var saving = new Thread(() => refused = Record.Exception(() => store.Update(f => f with { Apps = [] })));
+        saving.Start();
         // The temp file stays while the save retries its rename, holding the lock.
-        while (!File.Exists(SettingsPath + ".tmp") && !saving.IsCompleted) await Task.Delay(1, ct);
-        Assert.False(saving.IsCompleted, "The save ended before the read was tried.");
+        while (!File.Exists(SettingsPath + ".tmp") && saving.IsAlive) Thread.Sleep(1);
+        Assert.True(saving.IsAlive, "The save ended before the read was tried.");
         var apps = -1;
         var reader = new Thread(() => apps = store.Current.Apps.Count);
         reader.Start();
         Assert.True(reader.Join(TimeSpan.FromMilliseconds(150)), "The read waited for the save.");
         Assert.Equal(1, apps);
-        await saving;
+        saving.Join();
+        Assert.IsType<IOException>(refused);
     }
 
     [Fact]
